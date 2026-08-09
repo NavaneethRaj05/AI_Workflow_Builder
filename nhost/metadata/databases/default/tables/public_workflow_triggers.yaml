@@ -1,0 +1,141 @@
+table:
+  name: workflow_triggers
+  schema: public
+
+object_relationships:
+  - name: workflow
+    using:
+      foreign_key_constraint_on: workflow_id
+
+select_permissions:
+  - role: owner
+    permission:
+      columns: "*"
+      filter:
+        workflow:
+          org_id:
+            _in:
+              $select:
+                table: org_members
+                columns: [org_id]
+                where:
+                  _and:
+                    - user_id: { _eq: X-Hasura-User-Id }
+                    - role: { _eq: owner }
+  - role: editor
+    permission:
+      columns:
+        - id
+        - workflow_id
+        - trigger_type
+        - config
+        - is_active
+        - created_at
+      filter:
+        workflow:
+          org_id:
+            _in:
+              $select:
+                table: org_members
+                columns: [org_id]
+                where:
+                  user_id: { _eq: X-Hasura-User-Id }
+  - role: viewer
+    permission:
+      columns:
+        - id
+        - workflow_id
+        - trigger_type
+        - config
+        - is_active
+        - created_at
+      filter:
+        workflow:
+          org_id:
+            _in:
+              $select:
+                table: org_members
+                columns: [org_id]
+                where:
+                  user_id: { _eq: X-Hasura-User-Id }
+
+insert_permissions:
+  - role: owner
+    permission:
+      columns:
+        - workflow_id
+        - trigger_type
+        - config
+        - webhook_secret
+        - is_active
+      check:
+        # Only owners can create webhook triggers (Layer 2 permission)
+        workflow:
+          org_id:
+            _in:
+              $select:
+                table: org_members
+                columns: [org_id]
+                where:
+                  _and:
+                    - user_id: { _eq: X-Hasura-User-Id }
+                    - role: { _eq: owner }
+      set:
+        created_by: X-Hasura-User-Id
+  - role: editor
+    permission:
+      columns:
+        - workflow_id
+        - trigger_type
+        - config
+        - is_active
+      check:
+        # Editors can only create manual or scheduled triggers (not webhook)
+        _and:
+          - workflow:
+              org_id:
+                _in:
+                  $select:
+                    table: org_members
+                    columns: [org_id]
+                    where:
+                      user_id: { _eq: X-Hasura-User-Id }
+          - trigger_type: { _in: [manual, scheduled] }
+      set:
+        created_by: X-Hasura-User-Id
+
+update_permissions:
+  - role: owner
+    permission:
+      columns:
+        - trigger_type
+        - config
+        - webhook_secret
+        - is_active
+      filter:
+        workflow:
+          org_id:
+            _in:
+              $select:
+                table: org_members
+                columns: [org_id]
+                where:
+                  _and:
+                    - user_id: { _eq: X-Hasura-User-Id }
+                    - role: { _eq: owner }
+      check: {}
+
+delete_permissions:
+  - role: owner
+    permission:
+      filter:
+        workflow:
+          org_id:
+            _in:
+              $select:
+                table: org_members
+                columns: [org_id]
+                where:
+                  _and:
+                    - user_id: { _eq: X-Hasura-User-Id }
+                    - role: { _eq: owner }

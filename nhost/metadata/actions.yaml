@@ -1,0 +1,69 @@
+actions:
+  - name: triggerWorkflowRun
+    definition:
+      kind: synchronous
+      handler: "{{NHOST_FUNCTIONS_URL}}/triggerWorkflowRun"
+      headers:
+        - name: x-hasura-action-secret
+          value_from_env: NHOST_WEBHOOK_SECRET
+    comment: "Start a workflow run — validates org membership, checks quota, executes steps"
+    permissions:
+      - role: owner
+      - role: editor
+    request_transform:
+      method: POST
+      content_type: application/json
+      body:
+        action: "{{$body.action}}"
+        input: "{{$body.input}}"
+        session_variables: "{{$session_variables}}"
+
+  - name: approveStep
+    definition:
+      kind: synchronous
+      handler: "{{NHOST_FUNCTIONS_URL}}/approveStep"
+      headers:
+        - name: x-hasura-action-secret
+          value_from_env: NHOST_WEBHOOK_SECRET
+    comment: "Approve a paused approval_gate step — Layer 2 role check in handler"
+    permissions:
+      - role: owner
+      - role: editor
+
+  - name: webhookIngest
+    definition:
+      kind: synchronous
+      handler: "{{NHOST_FUNCTIONS_URL}}/webhookIngest"
+      headers:
+        - name: x-hasura-action-secret
+          value_from_env: NHOST_WEBHOOK_SECRET
+    comment: "Inbound webhook endpoint that external systems call to trigger a workflow run"
+    permissions:
+      - role: public
+
+custom_types:
+  objects:
+    - name: TriggerWorkflowRunOutput
+      fields:
+        - name: run_id
+          type: uuid!
+        - name: status
+          type: String!
+        - name: message
+          type: String!
+
+    - name: ApproveStepOutput
+      fields:
+        - name: success
+          type: Boolean!
+        - name: message
+          type: String!
+
+    - name: WebhookIngestOutput
+      fields:
+        - name: run_id
+          type: uuid
+        - name: status
+          type: String!
+        - name: message
+          type: String!

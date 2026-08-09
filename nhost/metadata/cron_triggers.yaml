@@ -1,0 +1,16 @@
+cron_triggers:
+  - name: scheduled_workflow_runner
+    webhook: "{{NHOST_FUNCTIONS_URL}}/scheduledRunner"
+    schedule: "* * * * *"
+    include_in_metadata: true
+    payload:
+      type: scheduled_check
+    headers:
+      - name: x-hasura-action-secret
+        value_from_env: NHOST_WEBHOOK_SECRET
+    retry_conf:
+      num_retries: 3
+      timeout_seconds: 60
+      tolerance_seconds: 21600
+      retry_interval_seconds: 10
+    comment: "Runs every minute to check for scheduled workflow triggers"

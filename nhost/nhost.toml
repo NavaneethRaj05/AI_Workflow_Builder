@@ -1,0 +1,73 @@
+[global]
+  [[global.environment]]
+  name = "GROQ_API_KEY"
+  value = "{{ secrets.GROQ_API_KEY }}"
+
+  [[global.environment]]
+  name = "NHOST_WEBHOOK_SECRET"
+  value = ""
+
+  [[global.environment]]
+  name = "SLACK_WEBHOOK_URL"
+  value = ""
+
+[hasura]
+  version = "v2.36.0-ce"
+  adminSecret = "{{ secrets.NHOST_ADMIN_SECRET }}"
+  webhookSecret = "{{ secrets.NHOST_WEBHOOK_SECRET }}"
+
+  [hasura.settings]
+    corsDomain = ["*"]
+    devMode = true
+    enableAllowList = false
+    enableConsole = true
+    enableRemoteSchemaPermissions = false
+    enabledAPIs = ["metadata", "graphql", "pgdump", "config"]
+
+  [hasura.logs]
+    level = "warn"
+
+  [hasura.events]
+    httpPoolSize = 100
+
+[functions]
+  [functions.node]
+    version = 18
+
+[auth]
+  version = "0.21.2"
+
+  [auth.redirections]
+    clientUrl = "http://localhost:3000"
+    allowedUrls = ["http://localhost:3000", "https://your-vercel-app.vercel.app"]
+
+  [auth.signUp]
+    enabled = true
+
+  [auth.user]
+    [auth.user.roles]
+      default = "user"
+      allowed = ["user"]
+
+  [auth.method]
+    [auth.method.emailPassword]
+      enabled = true
+      emailVerificationRequired = false
+      passwordMinLength = 9
+
+  [auth.totp]
+    enabled = false
+
+  [auth.session]
+    accessToken]
+      expiresIn = 900
+      [auth.session.accessToken.customClaims]
+        [[auth.session.accessToken.customClaims]]
+        key = "org-role"
+        value = "profile.organizationRole"
+
+[postgres]
+  version = "14.6-20230821-1"
+
+[storage]
+  version = "0.3.5"
