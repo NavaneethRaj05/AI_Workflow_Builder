@@ -8,8 +8,7 @@ actions:
           value_from_env: NHOST_WEBHOOK_SECRET
     comment: "Start a workflow run — validates org membership, checks quota, executes steps"
     permissions:
-      - role: owner
-      - role: editor
+      - role: user
     request_transform:
       method: POST
       content_type: application/json
@@ -27,8 +26,7 @@ actions:
           value_from_env: NHOST_WEBHOOK_SECRET
     comment: "Approve a paused approval_gate step — Layer 2 role check in handler"
     permissions:
-      - role: owner
-      - role: editor
+      - role: user
 
   - name: webhookIngest
     definition:

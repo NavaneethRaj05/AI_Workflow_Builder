@@ -15,13 +15,9 @@ select_permissions:
     permission:
       columns: "*"
       filter:
-        org_id:
-          _in:
-            $select:
-              table: org_members
-              columns: [org_id]
-              where:
-                user_id: { _eq: X-Hasura-User-Id }
+        organization:
+          org_members:
+            user_id: { _eq: X-Hasura-User-Id }
 
 insert_permissions:
   - role: user
@@ -31,15 +27,11 @@ insert_permissions:
         - user_id
         - role
       check:
-        org_id:
-          _in:
-            $select:
-              table: org_members
-              columns: [org_id]
-              where:
-                _and:
-                  - user_id: { _eq: X-Hasura-User-Id }
-                  - role: { _eq: owner }
+        organization:
+          org_members:
+            _and:
+              - user_id: { _eq: X-Hasura-User-Id }
+              - role: { _eq: owner }
 
 update_permissions:
   - role: user
@@ -47,15 +39,11 @@ update_permissions:
       columns:
         - role
       filter:
-        org_id:
-          _in:
-            $select:
-              table: org_members
-              columns: [org_id]
-              where:
-                _and:
-                  - user_id: { _eq: X-Hasura-User-Id }
-                  - role: { _eq: owner }
+        organization:
+          org_members:
+            _and:
+              - user_id: { _eq: X-Hasura-User-Id }
+              - role: { _eq: owner }
       check: {}
 
 delete_permissions:
@@ -63,14 +51,10 @@ delete_permissions:
     permission:
       filter:
         _and:
-          - org_id:
-              _in:
-                $select:
-                  table: org_members
-                  columns: [org_id]
-                  where:
-                    _and:
-                      - user_id: { _eq: X-Hasura-User-Id }
-                      - role: { _eq: owner }
+          - organization:
+              org_members:
+                _and:
+                  - user_id: { _eq: X-Hasura-User-Id }
+                  - role: { _eq: owner }
           # Cannot delete yourself
           - user_id: { _ne: X-Hasura-User-Id }
