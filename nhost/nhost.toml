@@ -47,14 +47,8 @@
       default = "user"
       allowed = ["user"]
 
-  [auth.method]
-    [auth.method.emailPassword]
-      enabled = true
-      emailVerificationRequired = false
-      passwordMinLength = 9
 
-  [auth.totp]
-    enabled = false
+
 
   [auth.session]
     [auth.session.accessToken]
