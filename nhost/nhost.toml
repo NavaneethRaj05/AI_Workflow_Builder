@@ -1,8 +1,9 @@
 [hasura]
-  version = "v2.36.0-ce"
+  version = "v2.49.2-ce"
   [[hasura.jwtSecrets]]
     type = "HS256"
     key = "{{ secrets.MY_JWT_SECRET }}"
+
   [hasura.settings]
     corsDomain = ["*"]
     devMode = true
@@ -49,7 +50,7 @@
       capacity = 1
 
 [storage]
-  version = "0.3.5"
+  version = "0.15.0"
 
 [observability]
   [observability.grafana]
