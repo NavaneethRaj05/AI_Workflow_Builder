@@ -1,3 +1,11 @@
+[hasura]
+  version = "v2.36.0-ce"
+  adminSecret = "{{ env.NHOST_ADMIN_SECRET }}"
+  webhookSecret = "{{ env.NHOST_WEBHOOK_SECRET }}"
+  [[hasura.jwtSecrets]]
+    type = "HS256"
+    key = "{{ env.NHOST_JWT_SECRET }}"
+
 [auth]
   version = "0.21.2"
 
