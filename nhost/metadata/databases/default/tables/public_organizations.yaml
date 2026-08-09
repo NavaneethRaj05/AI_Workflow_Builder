@@ -41,6 +41,35 @@ computed_fields:
     comment: "Remaining quota = quota_limit - quota_used"
 
 select_permissions:
+  - role: user
+    permission:
+      columns:
+        - id
+        - name
+        - slug
+        - quota_limit
+        - quota_used
+        - quota_reset_at
+        - created_at
+        - updated_at
+      filter:
+        id:
+          _in:
+            $select:
+              table: org_members
+              columns: [org_id]
+              where:
+                user_id: { _eq: X-Hasura-User-Id }
+insert_permissions:
+  - role: user
+    permission:
+      check: {}
+      columns:
+        - name
+        - slug
+        - quota_limit
+        - quota_used
+        - quota_reset_at
   - role: owner
     permission:
       columns: "*"

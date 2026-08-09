@@ -157,7 +157,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Link
               key={href}
               href={href}
-              className={`nav-link ${pathname === href || pathname.startsWith(href + '/') ? 'active' : ''}`}
+              className={`nav-link ${
+                (href === '/dashboard' && pathname === '/dashboard') || 
+                (href !== '/dashboard' && (pathname === href || pathname.startsWith(href + '/')))
+                  ? 'active'
+                  : ''
+              }`}
             >
               <Icon className="w-4 h-4" />
               {label}
