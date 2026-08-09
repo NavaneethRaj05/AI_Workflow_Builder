@@ -20,47 +20,17 @@ array_relationships:
         column: workflow_step_id
 
 select_permissions:
-  - role: owner
+  - role: user
     permission:
       columns: "*"
       filter:
         workflow:
-          org_id:
-            _in:
-              $select:
-                table: org_members
-                columns: [org_id]
-                where:
-                  _and:
-                    - user_id: { _eq: X-Hasura-User-Id }
-                    - role: { _eq: owner }
-  - role: editor
-    permission:
-      columns: "*"
-      filter:
-        workflow:
-          org_id:
-            _in:
-              $select:
-                table: org_members
-                columns: [org_id]
-                where:
-                  user_id: { _eq: X-Hasura-User-Id }
-  - role: viewer
-    permission:
-      columns: "*"
-      filter:
-        workflow:
-          org_id:
-            _in:
-              $select:
-                table: org_members
-                columns: [org_id]
-                where:
-                  user_id: { _eq: X-Hasura-User-Id }
+          organization:
+            org_members:
+              user_id: { _eq: X-Hasura-User-Id }
 
 insert_permissions:
-  - role: owner
+  - role: user
     permission:
       columns:
         - workflow_id
@@ -70,51 +40,33 @@ insert_permissions:
         - config
         - is_enabled
       check:
-        # owner can add ANY step type, including restricted ones
-        workflow:
-          org_id:
-            _in:
-              $select:
-                table: org_members
-                columns: [org_id]
-                where:
+        _or:
+          # owner can add ANY step type
+          - workflow:
+              organization:
+                org_members:
                   _and:
                     - user_id: { _eq: X-Hasura-User-Id }
                     - role: { _eq: owner }
-      set:
-        created_by: X-Hasura-User-Id
-  - role: editor
-    permission:
-      columns:
-        - workflow_id
-        - name
-        - step_order
-        - step_type
-        - config
-        - is_enabled
-      check:
-        # editor CANNOT add db_write, notify, or webhook-trigger-adjacent steps
-        # This is enforced by restricting to non-restricted step types
-        _and:
-          - workflow:
-              org_id:
-                _in:
-                  $select:
-                    table: org_members
-                    columns: [org_id]
-                    where:
-                      user_id: { _eq: X-Hasura-User-Id }
-          - step_type:
-              _in:
-                - llm_call
-                - http_request
-                - conditional_branch
-                - approval_gate
+          # editor CANNOT add db_write, notify
+          - _and:
+              - workflow:
+                  organization:
+                    org_members:
+                      _and:
+                        - user_id: { _eq: X-Hasura-User-Id }
+                        - role: { _eq: editor }
+              - step_type:
+                  _in:
+                    - llm_call
+                    - http_request
+                    - conditional_branch
+                    - approval_gate
       set:
         created_by: X-Hasura-User-Id
 
 update_permissions:
-  - role: owner
+  - role: user
     permission:
       columns:
         - name
@@ -123,72 +75,53 @@ update_permissions:
         - config
         - is_enabled
       filter:
-        workflow:
-          org_id:
-            _in:
-              $select:
-                table: org_members
-                columns: [org_id]
-                where:
+        _or:
+          # Owner can update any step
+          - workflow:
+              organization:
+                org_members:
                   _and:
                     - user_id: { _eq: X-Hasura-User-Id }
                     - role: { _eq: owner }
-      check: {}
-  - role: editor
-    permission:
-      columns:
-        - name
-        - step_order
-        - config
-        - is_enabled
-      filter:
-        _and:
-          - workflow:
-              org_id:
-                _in:
-                  $select:
-                    table: org_members
-                    columns: [org_id]
-                    where:
-                      user_id: { _eq: X-Hasura-User-Id }
           # Editors can only update non-restricted step types
-          - step_type:
-              _in:
-                - llm_call
-                - http_request
-                - conditional_branch
-                - approval_gate
+          - _and:
+              - workflow:
+                  organization:
+                    org_members:
+                      _and:
+                        - user_id: { _eq: X-Hasura-User-Id }
+                        - role: { _eq: editor }
+              - step_type:
+                  _in:
+                    - llm_call
+                    - http_request
+                    - conditional_branch
+                    - approval_gate
       check: {}
 
 delete_permissions:
-  - role: owner
+  - role: user
     permission:
       filter:
-        workflow:
-          org_id:
-            _in:
-              $select:
-                table: org_members
-                columns: [org_id]
-                where:
+        _or:
+          # Owner can delete any step
+          - workflow:
+              organization:
+                org_members:
                   _and:
                     - user_id: { _eq: X-Hasura-User-Id }
                     - role: { _eq: owner }
-  - role: editor
-    permission:
-      filter:
-        _and:
-          - workflow:
-              org_id:
-                _in:
-                  $select:
-                    table: org_members
-                    columns: [org_id]
-                    where:
-                      user_id: { _eq: X-Hasura-User-Id }
-          - step_type:
-              _in:
-                - llm_call
-                - http_request
-                - conditional_branch
-                - approval_gate
+          # Editors can only delete non-restricted step types
+          - _and:
+              - workflow:
+                  organization:
+                    org_members:
+                      _and:
+                        - user_id: { _eq: X-Hasura-User-Id }
+                        - role: { _eq: editor }
+              - step_type:
+                  _in:
+                    - llm_call
+                    - http_request
+                    - conditional_branch
+                    - approval_gate

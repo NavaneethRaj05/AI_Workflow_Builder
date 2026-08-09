@@ -35,38 +35,10 @@ computed_fields:
         schema: public
 
 select_permissions:
-  - role: owner
+  - role: user
     permission:
       columns: "*"
       filter:
-        org_id:
-          _in:
-            $select:
-              table: org_members
-              columns: [org_id]
-              where:
-                _and:
-                  - user_id: { _eq: X-Hasura-User-Id }
-                  - role: { _eq: owner }
-  - role: editor
-    permission:
-      columns: "*"
-      filter:
-        org_id:
-          _in:
-            $select:
-              table: org_members
-              columns: [org_id]
-              where:
-                user_id: { _eq: X-Hasura-User-Id }
-  - role: viewer
-    permission:
-      columns: "*"
-      filter:
-        org_id:
-          _in:
-            $select:
-              table: org_members
-              columns: [org_id]
-              where:
-                user_id: { _eq: X-Hasura-User-Id }
+        organization:
+          org_members:
+            user_id: { _eq: X-Hasura-User-Id }

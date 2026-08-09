@@ -43,23 +43,11 @@ computed_fields:
 select_permissions:
   - role: user
     permission:
-      columns:
-        - id
-        - name
-        - slug
-        - quota_limit
-        - quota_used
-        - quota_reset_at
-        - created_at
-        - updated_at
+      columns: "*"
       filter:
-        id:
-          _in:
-            $select:
-              table: org_members
-              columns: [org_id]
-              where:
-                user_id: { _eq: X-Hasura-User-Id }
+        org_members:
+          user_id: { _eq: X-Hasura-User-Id }
+
 insert_permissions:
   - role: user
     permission:
@@ -70,73 +58,17 @@ insert_permissions:
         - quota_limit
         - quota_used
         - quota_reset_at
-  - role: owner
-    permission:
-      columns: "*"
-      filter:
-        id:
-          _in:
-            $select:
-              table: org_members
-              columns: [org_id]
-              where:
-                _and:
-                  - user_id: { _eq: X-Hasura-User-Id }
-                  - role: { _eq: owner }
-  - role: editor
-    permission:
-      columns:
-        - id
-        - name
-        - slug
-        - quota_limit
-        - quota_used
-        - quota_reset_at
-        - created_at
-        - updated_at
-      filter:
-        id:
-          _in:
-            $select:
-              table: org_members
-              columns: [org_id]
-              where:
-                user_id: { _eq: X-Hasura-User-Id }
-  - role: viewer
-    permission:
-      columns:
-        - id
-        - name
-        - slug
-        - quota_limit
-        - quota_used
-        - quota_reset_at
-        - created_at
-        - updated_at
-      filter:
-        id:
-          _in:
-            $select:
-              table: org_members
-              columns: [org_id]
-              where:
-                user_id: { _eq: X-Hasura-User-Id }
 
 update_permissions:
-  - role: owner
+  - role: user
     permission:
       columns:
         - name
         - slug
         - quota_limit
       filter:
-        id:
-          _in:
-            $select:
-              table: org_members
-              columns: [org_id]
-              where:
-                _and:
-                  - user_id: { _eq: X-Hasura-User-Id }
-                  - role: { _eq: owner }
+        org_members:
+          _and:
+            - user_id: { _eq: X-Hasura-User-Id }
+            - role: { _eq: owner }
       check: {}

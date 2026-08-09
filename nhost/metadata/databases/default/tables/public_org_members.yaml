@@ -11,43 +11,9 @@ object_relationships:
       foreign_key_constraint_on: user_id
 
 select_permissions:
-  - role: owner
+  - role: user
     permission:
       columns: "*"
-      filter:
-        org_id:
-          _in:
-            $select:
-              table: org_members
-              columns: [org_id]
-              where:
-                _and:
-                  - user_id: { _eq: X-Hasura-User-Id }
-                  - role: { _eq: owner }
-  - role: editor
-    permission:
-      columns:
-        - id
-        - org_id
-        - user_id
-        - role
-        - created_at
-      filter:
-        org_id:
-          _in:
-            $select:
-              table: org_members
-              columns: [org_id]
-              where:
-                user_id: { _eq: X-Hasura-User-Id }
-  - role: viewer
-    permission:
-      columns:
-        - id
-        - org_id
-        - user_id
-        - role
-        - created_at
       filter:
         org_id:
           _in:
@@ -58,7 +24,7 @@ select_permissions:
                 user_id: { _eq: X-Hasura-User-Id }
 
 insert_permissions:
-  - role: owner
+  - role: user
     permission:
       columns:
         - org_id
@@ -76,7 +42,7 @@ insert_permissions:
                   - role: { _eq: owner }
 
 update_permissions:
-  - role: owner
+  - role: user
     permission:
       columns:
         - role
@@ -93,7 +59,7 @@ update_permissions:
       check: {}
 
 delete_permissions:
-  - role: owner
+  - role: user
     permission:
       filter:
         _and:
