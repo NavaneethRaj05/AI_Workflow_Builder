@@ -38,8 +38,8 @@
   version = "0.21.2"
 
   [auth.redirections]
-    clientUrl = "http://localhost:3000"
-    allowedUrls = ["http://localhost:3000", "https://your-vercel-app.vercel.app"]
+    clientUrl = "https://ai-workflow-builder-sable.vercel.app"
+    allowedUrls = ["http://localhost:3000", "https://ai-workflow-builder-sable.vercel.app"]
 
   [auth.signUp]
     enabled = true
