@@ -2,23 +2,54 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
-import { useQuery } from '@apollo/client';
+import { useQuery, useMutation } from '@apollo/client';
 import { useOrgStore } from '@/lib/store';
-import { GET_ORG_WORKFLOWS, GET_MY_ORGS } from '@/lib/graphql/operations';
+import { GET_ORG_WORKFLOWS, GET_MY_ORGS, CREATE_ORGANIZATION } from '@/lib/graphql/operations';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import toast from 'react-hot-toast';
 
 export default function DashboardPage() {
-  const { selectedOrgId, selectedOrgRole } = useOrgStore();
+  const { selectedOrgId, selectedOrgRole, setSelectedOrg } = useOrgStore();
   const router = useRouter();
+  const [newOrgName, setNewOrgName] = useState('');
+  const [creatingOrg, setCreatingOrg] = useState(false);
   const isEditor = ['owner', 'editor'].includes(selectedOrgRole || '');
 
-  const { data: orgsData } = useQuery(GET_MY_ORGS);
+  const { data: orgsData, refetch: refetchOrgs } = useQuery(GET_MY_ORGS);
   const { data: workflowsData, loading } = useQuery(GET_ORG_WORKFLOWS, {
     variables: { org_id: selectedOrgId },
     skip: !selectedOrgId,
   });
+
+  const [createOrg] = useMutation(CREATE_ORGANIZATION, {
+    onCompleted: (d) => {
+      const org = d?.insert_organizations_one;
+      toast.success(`Organization "${org.name}" created!`);
+      setNewOrgName('');
+      setCreatingOrg(false);
+      refetchOrgs().then(({ data }) => {
+        if (data?.org_members?.length > 0) {
+          const newMember = data.org_members.find((m: any) => m.organization.id === org.id) || data.org_members[0];
+          setSelectedOrg(newMember.organization.id, newMember.role);
+        }
+      });
+    },
+    onError: (e) => {
+      toast.error(e.message);
+      setCreatingOrg(false);
+    },
+  });
+
+  const handleCreateFirstOrg = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newOrgName.trim()) return;
+    setCreatingOrg(true);
+    const slug = newOrgName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    createOrg({ variables: { name: newOrgName.trim(), slug } });
+  };
 
   const orgs = orgsData?.org_members || [];
   const currentMember = orgs.find((m: any) => m.organization.id === selectedOrgId);
@@ -43,10 +74,37 @@ export default function DashboardPage() {
 
   if (!selectedOrgId) {
     return (
-      <div className="flex items-center justify-center h-full flex-col gap-4">
-        <div style={{ fontSize: '3rem' }}>🏢</div>
-        <h2 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>No Organization Selected</h2>
-        <p style={{ color: 'var(--text-muted)' }}>Select or create an organization to get started.</p>
+      <div className="flex items-center justify-center h-full">
+        <div className="card max-w-md w-full p-8 text-center animate-fade-in mx-4">
+          <div className="mx-auto w-16 h-16 rounded-2xl flex items-center justify-center mb-6"
+            style={{ background: 'linear-gradient(135deg, #4f46e5, #818cf8)' }}>
+            <span style={{ fontSize: '2rem' }}>🏢</span>
+          </div>
+          <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+            Welcome to FlowForge
+          </h2>
+          <p className="mb-8 text-sm" style={{ color: 'var(--text-muted)' }}>
+            To start building workflows, you need an organization to house them.
+            Create your first organization below.
+          </p>
+          <form onSubmit={handleCreateFirstOrg} className="flex flex-col gap-4 text-left">
+            <div>
+              <label className="input-label">Organization Name</label>
+              <input
+                type="text"
+                className="input"
+                placeholder="e.g. Acme Corp"
+                value={newOrgName}
+                onChange={e => setNewOrgName(e.target.value)}
+                required
+                disabled={creatingOrg}
+              />
+            </div>
+            <button type="submit" className="btn btn-primary w-full justify-center" disabled={creatingOrg}>
+              {creatingOrg ? 'Creating...' : 'Create Organization'}
+            </button>
+          </form>
+        </div>
       </div>
     );
   }
