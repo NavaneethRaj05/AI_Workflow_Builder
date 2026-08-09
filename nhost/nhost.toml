@@ -61,10 +61,9 @@
   [auth.session]
     [auth.session.accessToken]
       expiresIn = 900
-      [auth.session.accessToken.customClaims]
-        [[auth.session.accessToken.customClaims]]
-        key = "org-role"
-        value = "profile.organizationRole"
+      [[auth.session.accessToken.customClaims]]
+      key = "org-role"
+      value = "profile.organizationRole"
 
 [postgres]
   version = "14.6-20230821-1"
