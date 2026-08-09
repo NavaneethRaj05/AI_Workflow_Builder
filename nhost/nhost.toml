@@ -1,8 +1,22 @@
 [hasura]
   version = "v2.36.0-ce"
-  [[hasura.jwtSecrets]]
-    type = "HS256"
-    key = "{{ secrets.MY_JWT_SECRET }}"
+  [hasura.settings]
+    corsDomain = ["*"]
+    devMode = true
+    enableAllowList = false
+    enableConsole = true
+    enableRemoteSchemaPermissions = false
+    enabledAPIs = ["metadata", "graphql", "pgdump", "config"]
+
+  [hasura.logs]
+    level = "warn"
+
+  [hasura.events]
+    httpPoolSize = 100
+
+[functions]
+  [functions.node]
+    version = 22
 
 [auth]
   version = "0.21.2"
@@ -17,9 +31,6 @@
       default = "user"
       allowed = ["user"]
 
-
-
-
   [auth.session]
     [auth.session.accessToken]
       expiresIn = 900
@@ -28,7 +39,11 @@
       value = "profile.organizationRole"
 
 [postgres]
-  version = "14.6-20230821-1"
+  version = "14.20-20251217-1"
+
+  [postgres.resources]
+    [postgres.resources.storage]
+      capacity = 1
 
 [storage]
   version = "0.3.5"
