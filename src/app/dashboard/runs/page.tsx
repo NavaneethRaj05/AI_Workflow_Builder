@@ -1,10 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { useQuery } from '@apollo/client';
 import { useOrgStore } from '@/lib/store';
 import { GET_ORG_WORKFLOWS } from '@/lib/graphql/operations';
 import Link from 'next/link';
-import { formatDistanceToNow, format } from 'date-fns';
+import { format } from 'date-fns';
 
 const STATUS_CONFIG: Record<string, { color: string; icon: string }> = {
   pending: { color: '#64748b', icon: '⏳' },

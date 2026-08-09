@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable react-hooks/set-state-in-effect */
+/* eslint-disable react/no-unescaped-entities */
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -62,14 +65,12 @@ interface Step {
 // Sortable step card
 function SortableStep({
   step,
-  isOwner,
   onUpdate,
   onDelete,
   onSelect,
   isSelected,
 }: {
   step: Step;
-  isOwner: boolean;
   onUpdate: (id: string, changes: Partial<Step>) => void;
   onDelete: (id: string) => void;
   onSelect: (id: string) => void;
@@ -656,7 +657,6 @@ export default function WorkflowEditorPage() {
                           {idx > 0 && <div className="workflow-step-connector" />}
                           <SortableStep
                             step={step}
-                            isOwner={isOwner}
                             onUpdate={updateStep}
                             onDelete={deleteStep}
                             onSelect={setSelectedStepId}

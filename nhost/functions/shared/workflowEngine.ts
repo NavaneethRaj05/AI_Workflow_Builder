@@ -8,7 +8,7 @@ import {
   UPDATE_WORKFLOW_RUN,
   GET_WORKFLOW_WITH_STEPS,
   INSERT_NOTIFICATION,
-} from './shared/graphqlClient';
+} from './graphqlClient';
 import { gql } from 'graphql-request';
 
 type StepType = 'llm_call' | 'http_request' | 'db_write' | 'notify' | 'conditional_branch' | 'approval_gate';

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { ApolloClient, InMemoryCache, HttpLink, split } from '@apollo/client';

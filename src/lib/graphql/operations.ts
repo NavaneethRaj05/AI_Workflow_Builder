@@ -321,3 +321,97 @@ export const REMOVE_ORG_MEMBER = gql`
     }
   }
 `;
+
+export const CREATE_ORGANIZATION = gql`
+  mutation CreateOrganization($name: String!, $slug: String!) {
+    insert_organizations_one(object: { name: $name, slug: $slug }) {
+      id
+      name
+      slug
+      quota_limit
+      quota_used
+      quota_reset_at
+    }
+  }
+`;
+
+export const ADD_ORG_MEMBER = gql`
+  mutation AddOrgMember($org_id: uuid!, $user_id: uuid!, $role: org_member_role!) {
+    insert_org_members_one(object: { org_id: $org_id, user_id: $user_id, role: $role }) {
+      id
+      role
+      user {
+        id
+        email
+        displayName
+      }
+    }
+  }
+`;
+
+export const DELETE_WORKFLOW = gql`
+  mutation DeleteWorkflow($id: uuid!) {
+    delete_workflows_by_pk(id: $id) {
+      id
+    }
+  }
+`;
+
+export const GET_ORG_RUNS = gql`
+  query GetOrgRuns($org_id: uuid!, $limit: Int = 30) {
+    workflow_runs(
+      where: { org_id: { _eq: $org_id } }
+      order_by: { started_at: desc }
+      limit: $limit
+    ) {
+      id
+      status
+      trigger_type
+      started_at
+      completed_at
+      total_steps
+      completed_steps
+      workflow {
+        id
+        name
+      }
+    }
+  }
+`;
+
+export const SUBSCRIBE_ORG_NOTIFICATIONS = gql`
+  subscription SubscribeOrgNotifications($org_id: uuid!, $limit: Int = 30) {
+    notifications(
+      where: { org_id: { _eq: $org_id } }
+      order_by: { sent_at: desc }
+      limit: $limit
+    ) {
+      id
+      channel
+      title
+      message
+      status
+      sent_at
+      payload
+      workflow_run {
+        id
+        status
+        workflow {
+          id
+          name
+        }
+      }
+    }
+  }
+`;
+
+export const GET_USERS_BY_EMAIL = gql`
+  query GetUsersByEmail($email: citext!) {
+    users(where: { email: { _eq: $email } }) {
+      id
+      email
+      displayName
+      avatarUrl
+    }
+  }
+`;

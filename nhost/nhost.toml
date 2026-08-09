@@ -5,7 +5,7 @@
 
   [[global.environment]]
   name = "NHOST_WEBHOOK_SECRET"
-  value = ""
+  value = "{{ secrets.NHOST_WEBHOOK_SECRET }}"
 
   [[global.environment]]
   name = "SLACK_WEBHOOK_URL"
@@ -59,7 +59,7 @@
     enabled = false
 
   [auth.session]
-    accessToken]
+    [auth.session.accessToken]
       expiresIn = 900
       [auth.session.accessToken.customClaims]
         [[auth.session.accessToken.customClaims]]

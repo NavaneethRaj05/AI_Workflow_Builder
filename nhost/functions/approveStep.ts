@@ -108,17 +108,18 @@ export default async function handler(req: Request, res: Response) {
     // =========================================================
     // UPDATE STEP RUN: Mark as approved
     // =========================================================
+    const now = new Date().toISOString();
     await adminClient.request(gql`
-      mutation ApproveStepRun($id: uuid!, $approver_id: uuid!, $comment: String) {
+      mutation ApproveStepRun($id: uuid!, $approver_id: uuid!, $comment: String, $now: timestamptz!, $output: jsonb!) {
         update_step_runs_by_pk(
           pk_columns: {id: $id}
           _set: {
             status: succeeded
             approved_by: $approver_id
-            approved_at: "now()"
+            approved_at: $now
             approval_comment: $comment
-            completed_at: "now()"
-            output: {approved: true, approved_by: $approver_id}
+            completed_at: $now
+            output: $output
           }
         ) { id }
       }
@@ -126,6 +127,8 @@ export default async function handler(req: Request, res: Response) {
       id: step_run_id,
       approver_id: approverId,
       comment: comment || null,
+      now,
+      output: { approved: true, approved_by: approverId },
     });
 
     // =========================================================
