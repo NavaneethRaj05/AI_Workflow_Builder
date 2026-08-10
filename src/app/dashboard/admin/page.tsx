@@ -110,27 +110,48 @@ export default function AdminPage() {
       toast.error('Name and slug are required');
       return;
     }
-    const slug = newOrgSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+    const baseSlug = newOrgSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+    let result: any;
+    let finalSlug = baseSlug;
+
     try {
-      const result: any = await createOrg({ variables: { name: newOrgName.trim(), slug } });
-      // Auto add current user as owner (on_conflict handles if trigger already added us)
-      const orgId = result?.data?.insert_organizations_one?.id;
+      try {
+        result = await createOrg({ variables: { name: newOrgName.trim(), slug: finalSlug } });
+      } catch (firstErr: any) {
+        if (firstErr.message?.includes('organizations_slug_key') || firstErr.message?.includes('unique constraint')) {
+          // Retry with unique 4-character suffix
+          finalSlug = `${baseSlug}-${Math.random().toString(36).substring(2, 6)}`;
+          result = await createOrg({ variables: { name: newOrgName.trim(), slug: finalSlug } });
+        } else {
+          throw firstErr;
+        }
+      }
+
+      const org = result?.data?.insert_organizations_one;
+      const orgId = org?.id;
+
       if (orgId && user?.id) {
         try {
           await addMember({ variables: { org_id: orgId, user_id: user.id, role: 'owner' } });
         } catch (memberErr: any) {
-          // Ignore duplicate — the DB trigger may have already added us
           if (!memberErr.message?.includes('unique') && !memberErr.message?.includes('duplicate')) {
             console.warn('Could not add self as owner:', memberErr.message);
           }
         }
-        // Switch to the new org
+        toast.success(`Organization "${org.name}" created!`);
+        setNewOrgName('');
+        setNewOrgSlug('');
+        setShowCreateOrg(false);
         setSelectedOrg(orgId, 'owner');
         await refetchOrgs();
         await refetchMembers();
       }
     } catch (err: any) {
-      toast.error(err.message || 'Failed to create organization');
+      if (err.message?.includes('organizations_slug_key') || err.message?.includes('unique constraint')) {
+        toast.error('Slug is already taken. Please try a different slug.');
+      } else {
+        toast.error(err.message || 'Failed to create organization');
+      }
     }
   };
 

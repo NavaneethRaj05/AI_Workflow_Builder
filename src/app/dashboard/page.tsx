@@ -111,9 +111,22 @@ export default function DashboardPage() {
     e.preventDefault();
     if (!newOrgName.trim()) return;
     setCreatingOrg(true);
-    const slug = newOrgName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const baseSlug = newOrgName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    let finalSlug = baseSlug;
+    let orgResult: any;
+
     try {
-      const orgResult = await createOrg({ variables: { name: newOrgName.trim(), slug } });
+      try {
+        orgResult = await createOrg({ variables: { name: newOrgName.trim(), slug: finalSlug } });
+      } catch (firstErr: any) {
+        if (firstErr.message?.includes('organizations_slug_key') || firstErr.message?.includes('unique constraint')) {
+          finalSlug = `${baseSlug}-${Math.random().toString(36).substring(2, 6)}`;
+          orgResult = await createOrg({ variables: { name: newOrgName.trim(), slug: finalSlug } });
+        } else {
+          throw firstErr;
+        }
+      }
+
       const org = orgResult.data?.insert_organizations_one;
       if (!org?.id) throw new Error('Failed to create org');
 

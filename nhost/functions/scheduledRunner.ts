@@ -4,7 +4,15 @@ import type { Request, Response } from 'express';
 import { adminClient } from './shared/graphqlClient';
 import { executeWorkflow } from './shared/workflowEngine';
 import { gql } from 'graphql-request';
-import * as cron from 'cron-parser';
+import cronParser from 'cron-parser';
+
+function parseCron(expr: string, options: any) {
+  const parser = (cronParser as any).parseExpression || (cronParser as any).default?.parseExpression;
+  if (typeof parser !== 'function') {
+    throw new Error('cron-parser.parseExpression is not a function');
+  }
+  return parser(expr, options);
+}
 
 /**
  * Scheduled Runner
@@ -60,7 +68,7 @@ export default async function handler(req: Request, res: Response) {
 
       try {
         // Check if cron matches current minute
-        const interval = cron.parseExpression(cronExpr, {
+        const interval = parseCron(cronExpr, {
           currentDate: new Date(currentMinute.getTime() - 1000),
           utc: true,
         });
