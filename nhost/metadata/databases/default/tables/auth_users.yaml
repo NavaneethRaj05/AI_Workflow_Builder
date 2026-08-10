@@ -72,5 +72,14 @@ array_relationships:
 select_permissions:
   - role: user
     permission:
-      columns: "*"
+      columns:
+        - avatar_url
+        - created_at
+        - default_role
+        - display_name
+        - email
+        - id
+        - last_seen
+        - locale
+        - updated_at
       filter: {}

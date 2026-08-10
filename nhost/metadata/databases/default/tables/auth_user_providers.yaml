@@ -2,7 +2,17 @@ table:
   name: user_providers
   schema: auth
 configuration:
-  custom_name: userProviders
+  custom_name: authUserProviders
+  custom_root_fields:
+    delete: deleteAuthUserProviders
+    delete_by_pk: deleteAuthUserProvider
+    insert: insertAuthUserProviders
+    insert_one: insertAuthUserProvider
+    select: authUserProviders
+    select_aggregate: authUserProvidersAggregate
+    select_by_pk: authUserProvider
+    update: updateAuthUserProviders
+    update_by_pk: updateAuthUserProvider
   custom_column_names:
     created_at: createdAt
     id: id

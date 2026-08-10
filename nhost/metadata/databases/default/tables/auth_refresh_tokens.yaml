@@ -2,7 +2,17 @@ table:
   name: refresh_tokens
   schema: auth
 configuration:
-  custom_name: refreshTokens
+  custom_name: authRefreshTokens
+  custom_root_fields:
+    delete: deleteAuthRefreshTokens
+    delete_by_pk: deleteAuthRefreshToken
+    insert: insertAuthRefreshTokens
+    insert_one: insertAuthRefreshToken
+    select: authRefreshTokens
+    select_aggregate: authRefreshTokensAggregate
+    select_by_pk: authRefreshToken
+    update: updateAuthRefreshTokens
+    update_by_pk: updateAuthRefreshToken
   custom_column_names:
     created_at: createdAt
     expires_at: expiresAt
