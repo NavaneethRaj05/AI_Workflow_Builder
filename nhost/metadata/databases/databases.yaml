@@ -1,34 +1,32 @@
-version: 3
-sources:
-  - name: default
-    kind: postgres
-    tables: "!include databases/default/tables/tables.yaml"
-    configuration:
-      connection_info:
-        database_url:
-          from_env: HASURA_GRAPHQL_DATABASE_URL
-        isolation_level: read-committed
-        pool_settings:
-          connection_lifetime: 600
-          idle_timeout: 180
-          max_connections: 50
-          retries: 1
-        use_prepared_statements: true
-    event_triggers:
-      - name: on_notification_insert
-        definition:
-          enable_manual: false
-          insert:
-            columns: "*"
-        table:
-          name: notifications
-          schema: public
-        webhook: "{{NHOST_FUNCTIONS_URL}}/eventTriggerHandler"
-        headers:
-          - name: x-hasura-action-secret
-            value_from_env: NHOST_WEBHOOK_SECRET
-        retry_conf:
-          interval_sec: 10
-          num_retries: 3
-          timeout_sec: 60
-        comment: "Fires eventTriggerHandler when a notification row is inserted — triggers database_event workflows"
+- name: default
+  kind: postgres
+  tables: "!include default/tables/tables.yaml"
+  configuration:
+    connection_info:
+      database_url:
+        from_env: HASURA_GRAPHQL_DATABASE_URL
+      isolation_level: read-committed
+      pool_settings:
+        connection_lifetime: 600
+        idle_timeout: 180
+        max_connections: 50
+        retries: 1
+      use_prepared_statements: true
+  event_triggers:
+    - name: on_notification_insert
+      definition:
+        enable_manual: false
+        insert:
+          columns: "*"
+      table:
+        name: notifications
+        schema: public
+      webhook: "{{NHOST_FUNCTIONS_URL}}/eventTriggerHandler"
+      headers:
+        - name: x-hasura-action-secret
+          value_from_env: NHOST_WEBHOOK_SECRET
+      retry_conf:
+        interval_sec: 10
+        num_retries: 3
+        timeout_sec: 60
+      comment: "Fires eventTriggerHandler when a notification row is inserted — triggers database_event workflows"
