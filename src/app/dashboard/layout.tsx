@@ -10,6 +10,14 @@ import { useQuery } from '@apollo/client';
 import { GET_MY_ORGS } from '@/lib/graphql/operations';
 import { useOrgStore } from '@/lib/store';
 import nhost from '@/lib/nhost';
+import { useFirstTimeSetup } from '@/lib/useFirstTimeSetup';
+
+const SETUP_STEPS = [
+  { label: 'Creating your organization…', icon: '🏢' },
+  { label: 'Setting up AI workflow templates…', icon: '🤖' },
+  { label: 'Configuring permissions…', icon: '🔐' },
+  { label: 'Almost ready!', icon: '✨' },
+];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuthenticationStatus();
@@ -18,9 +26,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const { selectedOrgId, setSelectedOrg } = useOrgStore();
 
-  const { data: orgsData } = useQuery(GET_MY_ORGS, {
+  const { data: orgsData, loading: orgsLoading } = useQuery(GET_MY_ORGS, {
     skip: !isAuthenticated,
+    fetchPolicy: 'network-only',
   });
+
+  const orgsLoaded = !orgsLoading && !!orgsData;
+  const hasOrgs = (orgsData?.org_members?.length ?? 0) > 0;
+  const { isSeeding } = useFirstTimeSetup(hasOrgs, orgsLoaded);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -35,6 +48,61 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       setSelectedOrg(first.organization.id, first.role);
     }
   }, [orgsData, selectedOrgId, setSelectedOrg]);
+
+  // Show beautiful seeding screen
+  if (isSeeding) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-base)' }}>
+        <div className="flex flex-col items-center gap-6 max-w-sm w-full px-8 text-center animate-fade-in">
+          {/* Animated logo */}
+          <div className="relative">
+            <div className="w-20 h-20 rounded-3xl flex items-center justify-center animate-pulse-glow"
+              style={{ background: 'linear-gradient(135deg, #4f46e5, #818cf8)' }}>
+              <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center"
+              style={{ background: '#34d399' }}>
+              <svg className="w-3 h-3 text-white animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
+            </div>
+          </div>
+
+          <div>
+            <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+              Setting up your workspace
+            </h2>
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+              Creating demo workflows so you can explore FlowForge right away.
+            </p>
+          </div>
+
+          {/* Step list */}
+          <div className="w-full flex flex-col gap-3">
+            {SETUP_STEPS.map((step, i) => (
+              <div key={i} className="flex items-center gap-3 text-left px-4 py-2.5 rounded-xl"
+                style={{
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border-subtle)',
+                  opacity: 1,
+                  animation: `fadeIn 0.4s ease ${i * 0.5}s both`,
+                }}>
+                <span style={{ fontSize: '1.2rem' }}>{step.icon}</span>
+                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{step.label}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="quota-bar w-full">
+            <div className="quota-bar-fill" style={{ width: '100%', animation: 'progress 4s linear forwards' }} />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
