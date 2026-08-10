@@ -1,6 +1,8 @@
 table:
   name: users
   schema: auth
+configuration:
+  custom_name: users
 array_relationships:
   - name: org_members
     using:
