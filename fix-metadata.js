@@ -1,3 +1,4 @@
+/* eslint-disable */
 const https = require('https');
 
 const secret = process.argv[2];

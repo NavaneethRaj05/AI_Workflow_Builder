@@ -15,6 +15,7 @@ export const GET_MY_ORGS = gql`
         quota_limit
         quota_used
         quota_reset_at
+        quota_remaining
       }
     }
   }

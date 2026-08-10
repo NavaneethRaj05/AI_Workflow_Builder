@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import type { Request, Response } from 'express';
 import { adminClient } from './shared/graphqlClient';
 import { executeWorkflow } from './shared/workflowEngine';

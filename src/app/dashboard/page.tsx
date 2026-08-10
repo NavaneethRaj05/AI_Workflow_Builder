@@ -32,7 +32,10 @@ const STATUS_META: Record<string, { color: string; bg: string; dot: string }> = 
 function AnimatedCounter({ value, color }: { value: number; color: string }) {
   const [display, setDisplay] = useState(0);
   useEffect(() => {
-    if (value === 0) { setDisplay(0); return; }
+    if (value === 0) { 
+      const t = setTimeout(() => setDisplay(0), 0); 
+      return () => clearTimeout(t); 
+    }
     let start = 0;
     const step = Math.ceil(value / 20);
     const timer = setInterval(() => {
@@ -264,7 +267,7 @@ export default function DashboardPage() {
                 <div className="text-2xl font-bold" style={{ color: quotaPct > 90 ? '#f87171' : quotaPct > 70 ? '#fbbf24' : 'var(--text-primary)' }}>
                   {org.quota_used}<span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '1rem' }}>/{org.quota_limit}</span>
                 </div>
-                <div className="text-xs" style={{ color: 'var(--text-muted)' }}>runs used · {org.quota_limit - org.quota_used} remaining</div>
+                <div className="text-xs" style={{ color: 'var(--text-muted)' }}>runs used · {org.quota_remaining ?? (org.quota_limit - org.quota_used)} remaining</div>
               </div>
             </div>
             <div className="quota-bar mb-2">

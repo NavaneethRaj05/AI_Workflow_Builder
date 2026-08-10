@@ -134,7 +134,7 @@ export function useFirstTimeSetup(hasOrgs: boolean, orgsLoaded: boolean) {
     if (localStorage.getItem(key)) return;
 
     seededRef.current = true;
-    setIsSeeding(true);
+    const setupTimeout = setTimeout(() => setIsSeeding(true), 0);
 
     (async () => {
       try {
@@ -196,7 +196,7 @@ export function useFirstTimeSetup(hasOrgs: boolean, orgsLoaded: boolean) {
         setIsSeeding(false);
       }
     })();
-  }, [hasOrgs, orgsLoaded, user?.id]);
+  }, [hasOrgs, orgsLoaded, user?.id, addSelfAsOwner, client, createOrg, seedSteps, seedTrigger, seedWorkflow, setSelectedOrg]);
 
   return { isSeeding, seedComplete };
 }

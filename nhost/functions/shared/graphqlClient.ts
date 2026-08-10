@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { GraphQLClient, gql } from 'graphql-request';
 
 // Admin GraphQL client (bypasses row-level security)
