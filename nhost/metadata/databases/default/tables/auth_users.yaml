@@ -44,6 +44,20 @@ array_relationships:
           name: user_roles
           schema: auth
         column: user_id
+  - name: userProviders
+    using:
+      foreign_key_constraint_on:
+        table:
+          name: user_providers
+          schema: auth
+        column: user_id
+  - name: refreshTokens
+    using:
+      foreign_key_constraint_on:
+        table:
+          name: refresh_tokens
+          schema: auth
+        column: user_id
 
 select_permissions:
   - role: user

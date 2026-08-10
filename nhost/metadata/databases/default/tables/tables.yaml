@@ -8,3 +8,5 @@
 - "!include public_notifications.yaml"
 - "!include auth_users.yaml"
 - "!include auth_user_roles.yaml"
+- "!include auth_user_providers.yaml"
+- "!include auth_refresh_tokens.yaml"
