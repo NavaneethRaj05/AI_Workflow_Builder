@@ -7,9 +7,17 @@ import { gql } from 'graphql-request';
 function parseCron(expr: string, options: any) {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const cronParser = require('cron-parser');
-  const parser = cronParser.parseExpression || cronParser.default?.parseExpression;
+  
+  let parser = cronParser.parseExpression || cronParser.parse;
+  if (!parser && cronParser.default) {
+    parser = cronParser.default.parseExpression || cronParser.default.parse;
+  }
+  if (!parser && cronParser.CronExpressionParser) {
+    parser = cronParser.CronExpressionParser.parse;
+  }
+  
   if (typeof parser !== 'function') {
-    throw new Error('cron-parser.parseExpression is not a function');
+    throw new Error('cron-parser parse is not a function');
   }
   return parser(expr, options);
 }
