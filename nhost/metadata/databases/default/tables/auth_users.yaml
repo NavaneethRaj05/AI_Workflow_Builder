@@ -37,29 +37,18 @@ array_relationships:
           name: org_members
           schema: public
         column: user_id
+  - name: roles
+    using:
+      manual_configuration:
+        column_mapping:
+          id: user_id
+        insertion_order: null
+        remote_table:
+          name: user_roles
+          schema: auth
 
 select_permissions:
   - role: user
     permission:
-      columns:
-        - active_mfa_type
-        - avatar_url
-        - created_at
-        - default_role
-        - disabled
-        - display_name
-        - email
-        - email_verified
-        - id
-        - is_anonymous
-        - last_seen
-        - locale
-        - metadata
-        - new_email
-        - otp_hash_expires_at
-        - otp_method_last_used
-        - phone_number
-        - phone_number_verified
-        - ticket_expires_at
-        - updated_at
+      columns: "*"
       filter: {}
