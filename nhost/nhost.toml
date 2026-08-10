@@ -31,12 +31,6 @@
 
   [auth.method.emailPassword]
     emailVerificationRequired = false
-    passwordMinLength = 9
-
-  [auth.users]
-    [auth.users.roles]
-      default = "user"
-      allowed = ["user"]
 
   [auth.session]
     [auth.session.accessToken]
