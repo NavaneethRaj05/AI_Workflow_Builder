@@ -4,10 +4,10 @@ import type { Request, Response } from 'express';
 import { adminClient } from './shared/graphqlClient';
 import { executeWorkflow } from './shared/workflowEngine';
 import { gql } from 'graphql-request';
-import * as cronParser from 'cron-parser';
-
 function parseCron(expr: string, options: any) {
-  const parser = cronParser.parseExpression || (cronParser as any).default?.parseExpression;
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const cronParser = require('cron-parser');
+  const parser = cronParser.parseExpression || cronParser.default?.parseExpression;
   if (typeof parser !== 'function') {
     throw new Error('cron-parser.parseExpression is not a function');
   }
