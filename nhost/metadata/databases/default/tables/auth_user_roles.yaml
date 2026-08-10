@@ -2,17 +2,17 @@ table:
   name: user_roles
   schema: auth
 configuration:
-  custom_name: authUserRoles
+  custom_name: authRoles
   custom_root_fields:
-    delete: deleteAuthUserRoles
-    delete_by_pk: deleteAuthUserRole
-    insert: insertAuthUserRoles
-    insert_one: insertAuthUserRole
-    select: authUserRoles
-    select_aggregate: authUserRolesAggregate
-    select_by_pk: authUserRole
-    update: updateAuthUserRoles
-    update_by_pk: updateAuthUserRole
+    delete: deleteAuthRoles
+    delete_by_pk: deleteAuthRole
+    insert: insertAuthRoles
+    insert_one: insertAuthRole
+    select: authRoles
+    select_aggregate: authRolesAggregate
+    select_by_pk: authRole
+    update: updateAuthRoles
+    update_by_pk: updateAuthRole
 object_relationships:
   - name: user
     using:
