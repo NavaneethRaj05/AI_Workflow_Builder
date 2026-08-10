@@ -3,7 +3,7 @@
 
   [[hasura.jwtSecrets]]
     type = "HS256"
-    key = "{{ secrets.NHOST_JWT_SECRET }}"
+    key = "{{ secrets.MY_JWT_SECRET }}"
 
   [hasura.settings]
     corsDomain = ["*"]
