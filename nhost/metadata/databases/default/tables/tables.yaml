@@ -6,3 +6,5 @@
 - "!include public_workflow_runs.yaml"
 - "!include public_step_runs.yaml"
 - "!include public_notifications.yaml"
+- "!include auth_users.yaml"
+

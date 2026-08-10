@@ -1,0 +1,17 @@
+table:
+  name: users
+  schema: auth
+configuration:
+  custom_name: users
+  custom_column_names:
+    display_name: displayName
+    avatar_url: avatarUrl
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - id
+        - email
+        - display_name
+        - avatar_url
+      filter: {}
