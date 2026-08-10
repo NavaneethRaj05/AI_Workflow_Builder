@@ -39,13 +39,11 @@ array_relationships:
         column: user_id
   - name: roles
     using:
-      manual_configuration:
-        column_mapping:
-          id: user_id
-        insertion_order: null
-        remote_table:
+      foreign_key_constraint_on:
+        table:
           name: user_roles
           schema: auth
+        column: user_id
 
 select_permissions:
   - role: user
