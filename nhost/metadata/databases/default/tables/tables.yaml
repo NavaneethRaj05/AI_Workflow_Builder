@@ -7,3 +7,4 @@
 - "!include public_step_runs.yaml"
 - "!include public_notifications.yaml"
 - "!include auth_users.yaml"
+- "!include auth_user_roles.yaml"
