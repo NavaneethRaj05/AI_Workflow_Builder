@@ -14,7 +14,9 @@ configuration:
     email_verified: emailVerified
     id: id
     is_anonymous: isAnonymous
+    last_seen: lastSeen
     locale: locale
+    metadata: metadata
     new_email: newEmail
     otp_hash: otpHash
     otp_hash_expires_at: otpHashExpiresAt
@@ -26,6 +28,7 @@ configuration:
     ticket_expires_at: ticketExpiresAt
     totp_secret: totpSecret
     updated_at: updatedAt
+    webauthn_current_challenge: webauthnCurrentChallenge
 array_relationships:
   - name: org_members
     using:
