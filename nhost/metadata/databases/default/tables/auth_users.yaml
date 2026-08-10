@@ -9,10 +9,7 @@ array_relationships:
           name: org_members
           schema: public
         column: user_id
-configuration:
-  custom_column_names:
-    display_name: displayName
-    avatar_url: avatarUrl
+
 select_permissions:
   - role: user
     permission:

@@ -124,8 +124,8 @@ export const GET_ORG_MEMBERS = gql`
       user {
         id
         email
-        displayName
-        avatarUrl
+        displayName: display_name
+        avatarUrl: avatar_url
       }
     }
   }
@@ -343,7 +343,7 @@ export const ADD_ORG_MEMBER = gql`
       user {
         id
         email
-        displayName
+        displayName: display_name
       }
     }
   }
@@ -410,8 +410,8 @@ export const GET_USERS_BY_EMAIL = gql`
     users(where: { email: { _eq: $email } }) {
       id
       email
-      displayName
-      avatarUrl
+      displayName: display_name
+      avatarUrl: avatar_url
     }
   }
 `;
