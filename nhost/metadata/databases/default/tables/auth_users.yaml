@@ -1,6 +1,18 @@
 table:
   name: users
   schema: auth
+array_relationships:
+  - name: org_members
+    using:
+      foreign_key_constraint_on:
+        table:
+          name: org_members
+          schema: public
+        column: user_id
+configuration:
+  custom_column_names:
+    display_name: displayName
+    avatar_url: avatarUrl
 select_permissions:
   - role: user
     permission:
@@ -9,4 +21,8 @@ select_permissions:
         - email
         - display_name
         - avatar_url
-      filter: {}
+      filter:
+        org_members:
+          organization:
+            org_members:
+              user_id: { _eq: X-Hasura-User-Id }

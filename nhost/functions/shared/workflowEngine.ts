@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import * as vm from 'vm';
+import { evaluateCondition } from './safeCondition';
 import {
   adminClient,
   getUserOrgRole,
@@ -512,13 +512,8 @@ function executeConditionalBranch(step: WorkflowStep, input: any): any {
   let conditionResult = false;
 
   try {
-    // Sandbox condition evaluation
-    const inputValue = typeof input === 'object' ? input : { value: input };
-    // Provide both 'input' and 'output' to support existing workflows
-    const context = vm.createContext({ input: inputValue, output: inputValue });
-    
-    const result = vm.runInContext(`!!(${condition})`, context, { timeout: 100 });
-    conditionResult = result === true;
+    const inputValue = typeof input === 'object' && input !== null ? input : { value: input };
+    conditionResult = evaluateCondition(condition, { input: inputValue, output: inputValue });
   } catch (e: any) {
     console.error('[ConditionalBranch] Condition evaluation error:', e.message);
     conditionResult = false;
