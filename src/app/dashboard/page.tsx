@@ -4,7 +4,8 @@
 
 import { useQuery, useMutation, useSubscription } from '@apollo/client';
 import { useOrgStore } from '@/lib/store';
-import { GET_ORG_WORKFLOWS, GET_MY_ORGS, CREATE_ORGANIZATION, SUBSCRIBE_ORG_NOTIFICATIONS } from '@/lib/graphql/operations';
+import { GET_ORG_WORKFLOWS, GET_MY_ORGS, CREATE_ORGANIZATION, ADD_ORG_MEMBER, SUBSCRIBE_ORG_NOTIFICATIONS } from '@/lib/graphql/operations';
+import { useUserData } from '@nhost/react';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { useRouter } from 'next/navigation';
@@ -87,6 +88,7 @@ function StepPipeline({ steps }: { steps: any[] }) {
 export default function DashboardPage() {
   const { selectedOrgId, selectedOrgRole, setSelectedOrg } = useOrgStore();
   const router = useRouter();
+  const user = useUserData();
   const [newOrgName, setNewOrgName] = useState('');
   const [creatingOrg, setCreatingOrg] = useState(false);
   const isEditor = ['owner', 'editor'].includes(selectedOrgRole || '');
@@ -102,28 +104,41 @@ export default function DashboardPage() {
     skip: !selectedOrgId,
   });
 
-  const [createOrg] = useMutation(CREATE_ORGANIZATION, {
-    onCompleted: (d) => {
-      const org = d?.insert_organizations_one;
-      toast.success(`Organization "${org.name}" created!`);
-      setNewOrgName('');
-      setCreatingOrg(false);
-      refetchOrgs().then(({ data }) => {
-        if (data?.org_members?.length > 0) {
-          const newMember = data.org_members.find((m: any) => m.organization.id === org.id) || data.org_members[0];
-          setSelectedOrg(newMember.organization.id, newMember.role);
-        }
-      });
-    },
-    onError: (e) => { toast.error(e.message); setCreatingOrg(false); },
-  });
+  const [createOrg] = useMutation(CREATE_ORGANIZATION);
+  const [addSelfMember] = useMutation(ADD_ORG_MEMBER);
 
-  const handleCreateFirstOrg = (e: React.FormEvent) => {
+  const handleCreateFirstOrg = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newOrgName.trim()) return;
     setCreatingOrg(true);
     const slug = newOrgName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    createOrg({ variables: { name: newOrgName.trim(), slug } });
+    try {
+      const orgResult = await createOrg({ variables: { name: newOrgName.trim(), slug } });
+      const org = orgResult.data?.insert_organizations_one;
+      if (!org?.id) throw new Error('Failed to create org');
+
+      // Explicitly add self as owner (on_conflict handles if trigger already did it)
+      if (user?.id) {
+        try {
+          await addSelfMember({ variables: { org_id: org.id, user_id: user.id, role: 'owner' } });
+        } catch { /* trigger may have handled it — ignore duplicate errors */ }
+      }
+
+      toast.success(`Organization "${org.name}" created!`);
+      setNewOrgName('');
+
+      // Small delay for trigger to complete, then refetch
+      await new Promise(r => setTimeout(r, 500));
+      const { data } = await refetchOrgs();
+      if (data?.org_members?.length > 0) {
+        const newMember = data.org_members.find((m: any) => m.organization.id === org.id) || data.org_members[0];
+        setSelectedOrg(newMember.organization.id, newMember.role);
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to create organization');
+    } finally {
+      setCreatingOrg(false);
+    }
   };
 
   const orgs = orgsData?.org_members || [];

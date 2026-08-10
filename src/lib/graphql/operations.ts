@@ -337,7 +337,10 @@ export const CREATE_ORGANIZATION = gql`
 
 export const ADD_ORG_MEMBER = gql`
   mutation AddOrgMember($org_id: uuid!, $user_id: uuid!, $role: org_member_role!) {
-    insert_org_members_one(object: { org_id: $org_id, user_id: $user_id, role: $role }) {
+    insert_org_members_one(
+      object: { org_id: $org_id, user_id: $user_id, role: $role }
+      on_conflict: { constraint: org_members_org_id_user_id_key, update_columns: [role] }
+    ) {
       id
       role
       user {

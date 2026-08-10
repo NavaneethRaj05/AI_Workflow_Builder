@@ -20,8 +20,4 @@ select_permissions:
         - email
         - display_name
         - avatar_url
-      filter:
-        org_members:
-          organization:
-            org_members:
-              user_id: { _eq: X-Hasura-User-Id }
+      filter: {}

@@ -44,6 +44,8 @@ select_permissions:
   - role: user
     permission:
       columns: "*"
+      computed_fields:
+        - quota_remaining
       filter:
         org_members:
           user_id: { _eq: X-Hasura-User-Id }
@@ -72,3 +74,12 @@ update_permissions:
             - user_id: { _eq: X-Hasura-User-Id }
             - role: { _eq: owner }
       check: {}
+
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        org_members:
+          _and:
+            - user_id: { _eq: X-Hasura-User-Id }
+            - role: { _eq: owner }

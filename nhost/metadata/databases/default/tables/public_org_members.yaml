@@ -27,11 +27,16 @@ insert_permissions:
         - user_id
         - role
       check:
-        organization:
-          org_members:
-            _and:
-              - user_id: { _eq: X-Hasura-User-Id }
-              - role: { _eq: owner }
+        _or:
+          # Case 1: User is already an owner of this org (can add other members)
+          - organization:
+              org_members:
+                _and:
+                  - user_id: { _eq: X-Hasura-User-Id }
+                  - role: { _eq: owner }
+          # Case 2: Bootstrap — user is adding THEMSELVES (user_id matches caller)
+          # This handles the first-member case after org creation
+          - user_id: { _eq: X-Hasura-User-Id }
 
 update_permissions:
   - role: user

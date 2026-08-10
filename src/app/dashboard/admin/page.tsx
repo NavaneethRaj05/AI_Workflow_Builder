@@ -111,11 +111,26 @@ export default function AdminPage() {
       return;
     }
     const slug = newOrgSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
-    const result: any = await createOrg({ variables: { name: newOrgName.trim(), slug } });
-    // Auto add current user as owner
-    const orgId = result?.data?.insert_organizations_one?.id;
-    if (orgId && user?.id) {
-      await addMember({ variables: { org_id: orgId, user_id: user.id, role: 'owner' } });
+    try {
+      const result: any = await createOrg({ variables: { name: newOrgName.trim(), slug } });
+      // Auto add current user as owner (on_conflict handles if trigger already added us)
+      const orgId = result?.data?.insert_organizations_one?.id;
+      if (orgId && user?.id) {
+        try {
+          await addMember({ variables: { org_id: orgId, user_id: user.id, role: 'owner' } });
+        } catch (memberErr: any) {
+          // Ignore duplicate — the DB trigger may have already added us
+          if (!memberErr.message?.includes('unique') && !memberErr.message?.includes('duplicate')) {
+            console.warn('Could not add self as owner:', memberErr.message);
+          }
+        }
+        // Switch to the new org
+        setSelectedOrg(orgId, 'owner');
+        await refetchOrgs();
+        await refetchMembers();
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to create organization');
     }
   };
 

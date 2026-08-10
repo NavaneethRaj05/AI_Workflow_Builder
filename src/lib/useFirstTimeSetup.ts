@@ -17,7 +17,10 @@ const CREATE_ORG_MUTATION = gql`
 
 const ADD_SELF_AS_OWNER = gql`
   mutation SetupAddOwner($org_id: uuid!, $user_id: uuid!) {
-    insert_org_members_one(object: { org_id: $org_id, user_id: $user_id, role: owner }) {
+    insert_org_members_one(
+      object: { org_id: $org_id, user_id: $user_id, role: owner }
+      on_conflict: { constraint: org_members_org_id_user_id_key, update_columns: [role] }
+    ) {
       id
     }
   }
@@ -28,7 +31,6 @@ const SEED_WORKFLOW = gql`
     $name: String!
     $description: String
     $org_id: uuid!
-    $created_by: uuid!
   ) {
     insert_workflows_one(
       object: {
@@ -36,7 +38,6 @@ const SEED_WORKFLOW = gql`
         description: $description
         org_id: $org_id
         is_active: true
-        created_by: $created_by
       }
     ) {
       id
@@ -89,7 +90,7 @@ const DEMO_WORKFLOWS = [
     name: 'Scheduled Daily Digest',
     description: 'Runs every morning, fetches news via HTTP, summarizes with LLM, and emails the digest to the team.',
     trigger: 'scheduled',
-    triggerConfig: { cron: '0 9 * * *', timezone: 'UTC' },
+    triggerConfig: { cron_expression: '0 9 * * *', timezone: 'UTC' },
     steps: [
       { name: 'Fetch Latest News', step_type: 'http_request', step_order: 0, config: { method: 'GET', url: 'https://hacker-news.firebaseio.com/v0/topstories.json', description: 'Fetch top HN story IDs' } },
       { name: 'Summarize with LLM', step_type: 'llm_call', step_order: 1, config: { model: 'llama3-8b-8192', prompt: 'Summarize these Hacker News top stories for a morning digest: {{input.ids}}' } },
@@ -145,44 +146,59 @@ export function useFirstTimeSetup(hasOrgs: boolean, orgsLoaded: boolean) {
         const orgId = orgResult.data?.insert_organizations_one?.id;
         if (!orgId) throw new Error('Failed to create org');
 
-        // 2. Add self as owner
-        await addSelfAsOwner({ variables: { org_id: orgId, user_id: user.id } });
+        // 2. Add self as owner (use on_conflict to handle if trigger already added us)
+        try {
+          await addSelfAsOwner({ variables: { org_id: orgId, user_id: user.id } });
+        } catch (memberError: any) {
+          // Ignore duplicate key errors — the DB trigger may have already added us
+          if (!memberError.message?.includes('uniqueness violation') && 
+              !memberError.message?.includes('unique constraint') &&
+              !memberError.message?.includes('duplicate key')) {
+            console.warn('Could not add self as owner, trigger may have handled it:', memberError.message);
+          }
+        }
 
         // 3. Select it
         setSelectedOrg(orgId, 'owner');
 
-        // 4. Seed demo workflows
+        // 4. Small delay to ensure membership is committed
+        await new Promise(r => setTimeout(r, 500));
+
+        // 5. Seed demo workflows
         for (const demo of DEMO_WORKFLOWS) {
-          const wfResult = await seedWorkflow({
-            variables: {
-              name: demo.name,
-              description: demo.description,
-              org_id: orgId,
-              created_by: user.id,
-            },
-          });
-          const wfId = wfResult.data?.insert_workflows_one?.id;
-          if (!wfId) continue;
+          try {
+            const wfResult = await seedWorkflow({
+              variables: {
+                name: demo.name,
+                description: demo.description,
+                org_id: orgId,
+              },
+            });
+            const wfId = wfResult.data?.insert_workflows_one?.id;
+            if (!wfId) continue;
 
-          // Steps
-          await seedSteps({
-            variables: {
-              steps: demo.steps.map((s) => ({
-                ...s,
+            // Steps
+            await seedSteps({
+              variables: {
+                steps: demo.steps.map((s) => ({
+                  ...s,
+                  workflow_id: wfId,
+                  is_enabled: true,
+                })),
+              },
+            });
+
+            // Trigger
+            await seedTrigger({
+              variables: {
                 workflow_id: wfId,
-                is_enabled: true,
-              })),
-            },
-          });
-
-          // Trigger
-          await seedTrigger({
-            variables: {
-              workflow_id: wfId,
-              trigger_type: demo.trigger as any,
-              config: demo.triggerConfig,
-            },
-          });
+                trigger_type: demo.trigger as any,
+                config: demo.triggerConfig,
+              },
+            });
+          } catch (wfError: any) {
+            console.warn(`Failed to seed workflow "${demo.name}":`, wfError.message);
+          }
         }
 
         localStorage.setItem(key, '1');
@@ -194,6 +210,7 @@ export function useFirstTimeSetup(hasOrgs: boolean, orgsLoaded: boolean) {
         seededRef.current = false;
       } finally {
         setIsSeeding(false);
+        clearTimeout(setupTimeout);
       }
     })();
   }, [hasOrgs, orgsLoaded, user?.id, addSelfAsOwner, client, createOrg, seedSteps, seedTrigger, seedWorkflow, setSelectedOrg]);
