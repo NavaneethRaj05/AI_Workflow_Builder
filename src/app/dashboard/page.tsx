@@ -4,8 +4,9 @@
 
 import { useQuery, useMutation, useSubscription } from '@apollo/client';
 import { useOrgStore } from '@/lib/store';
-import { GET_ORG_WORKFLOWS, GET_MY_ORGS, CREATE_ORGANIZATION, SUBSCRIBE_ORG_NOTIFICATIONS } from '@/lib/graphql/operations';
+import { GET_ORG_WORKFLOWS, GET_MY_ORGS, CREATE_ORGANIZATION, SUBSCRIBE_ORG_NOTIFICATIONS, UPSERT_WORKFLOW, INSERT_WORKFLOW_STEPS, UPSERT_WORKFLOW_TRIGGER } from '@/lib/graphql/operations';
 import Link from 'next/link';
+import { v4 as uuidv4 } from 'uuid';
 import { formatDistanceToNow } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
@@ -98,6 +99,40 @@ export default function DashboardPage() {
     variables: { org_id: selectedOrgId, limit: 5 },
     skip: !selectedOrgId,
   });
+
+  const [upsertWorkflow] = useMutation(UPSERT_WORKFLOW);
+  const [insertWorkflowSteps] = useMutation(INSERT_WORKFLOW_STEPS);
+  const [upsertWorkflowTrigger] = useMutation(UPSERT_WORKFLOW_TRIGGER);
+  const [seeding, setSeeding] = useState(false);
+
+  const handleSeedDemo = async () => {
+    if (!selectedOrgId) return;
+    setSeeding(true);
+    try {
+      const workflowId = uuidv4();
+      await upsertWorkflow({
+        variables: { id: workflowId, name: 'Demo Lead Processor', description: 'Automatically processes new leads, analyzes them with AI, and alerts the team.', org_id: selectedOrgId, is_active: true }
+      });
+      
+      const steps = [
+        { id: uuidv4(), workflow_id: workflowId, name: 'Analyze Lead', step_type: 'llm_call', step_order: 1, config: { model: 'llama-3.3-70b-versatile', system_prompt: 'You are a lead scoring AI.', user_prompt: 'Analyze this lead: {{input.lead_name}} from {{input.company}}' }, is_enabled: true },
+        { id: uuidv4(), workflow_id: workflowId, name: 'Check Domain', step_type: 'http_request', step_order: 2, config: { url: 'https://example.com/api/domain-check', method: 'GET', headers: {} }, is_enabled: true },
+        { id: uuidv4(), workflow_id: workflowId, name: 'High Value?', step_type: 'conditional_branch', step_order: 3, config: { condition: '{{steps.1.output}} contains "High"', true_branch_step_id: null, false_branch_step_id: null }, is_enabled: true },
+        { id: uuidv4(), workflow_id: workflowId, name: 'Save to DB', step_type: 'db_write', step_order: 4, config: { table_name: 'leads', data: { name: '{{input.lead_name}}', score: '{{steps.1.output}}' } }, is_enabled: true },
+        { id: uuidv4(), workflow_id: workflowId, name: 'Manager Approval', step_type: 'approval_gate', step_order: 5, config: { require_role: 'editor' }, is_enabled: true },
+        { id: uuidv4(), workflow_id: workflowId, name: 'Slack Alert', step_type: 'notify', step_order: 6, config: { channel: 'slack', title: 'New High Value Lead!', message: 'A lead was approved.' }, is_enabled: true }
+      ];
+      
+      await insertWorkflowSteps({ variables: { steps } });
+      await upsertWorkflowTrigger({ variables: { workflow_id: workflowId, trigger_type: 'webhook', config: {}, is_active: true } });
+      
+      toast.success('Demo Workflow Generated successfully!');
+    } catch (e: any) {
+      toast.error('Failed to generate demo: ' + e.message);
+    } finally {
+      setSeeding(false);
+    }
+  };
 
   const [createOrg] = useMutation(CREATE_ORGANIZATION, {
     onCompleted: (d) => {
@@ -335,15 +370,23 @@ export default function DashboardPage() {
               {[1, 2, 3].map(i => <div key={i} className="skeleton h-24 rounded-xl" />)}
             </div>
           ) : workflows.length === 0 ? (
-            <div className="card text-center py-12">
-              <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>🔧</div>
+            <div className="card text-center py-12 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 opacity-10 rounded-full blur-3xl" style={{ background: '#4f46e5', transform: 'translate(30%, -30%)' }} />
+              <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>✨</div>
               <p className="font-medium mb-2" style={{ color: 'var(--text-primary)' }}>No workflows yet</p>
-              <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>Create your first AI workflow</p>
-              {isEditor && (
-                <Link href="/dashboard/workflows/new" className="btn btn-primary btn-sm">
-                  Create Workflow
-                </Link>
-              )}
+              <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>Build your first AI workflow from scratch or generate a demo setup.</p>
+              <div className="flex items-center justify-center gap-3">
+                {isEditor && (
+                  <>
+                    <Link href="/dashboard/workflows/new" className="btn btn-primary btn-sm">
+                      Create Workflow
+                    </Link>
+                    <button onClick={handleSeedDemo} disabled={seeding} className="btn btn-secondary btn-sm" style={{ border: '1px solid var(--color-brand-500)', color: 'var(--color-brand-400)' }}>
+                      {seeding ? 'Generating...' : '✨ Seed Demo Setup'}
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           ) : (
             <div className="flex flex-col gap-3">
