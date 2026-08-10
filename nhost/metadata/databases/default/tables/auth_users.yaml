@@ -3,6 +3,16 @@ table:
   schema: auth
 configuration:
   custom_name: users
+  custom_root_fields:
+    delete: deleteUsers
+    delete_by_pk: deleteUser
+    insert: insertUsers
+    insert_one: insertUser
+    select: users
+    select_aggregate: usersAggregate
+    select_by_pk: user
+    update: updateUsers
+    update_by_pk: updateUser
   custom_column_names:
     active_mfa_type: activeMfaType
     avatar_url: avatarUrl
