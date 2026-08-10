@@ -14,8 +14,3 @@ configuration:
     select_by_pk: authRole
     update: updateAuthRoles
     update_by_pk: updateAuthRole
-select_permissions:
-  - role: user
-    permission:
-      columns: "*"
-      filter: {}
