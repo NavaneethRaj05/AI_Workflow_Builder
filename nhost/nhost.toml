@@ -58,6 +58,4 @@
 [storage]
   version = "0.15.0"
 
-[observability]
-  [observability.grafana]
-    adminPassword = "{{ secrets.GRAFANA_ADMIN_PASSWORD }}"
+
