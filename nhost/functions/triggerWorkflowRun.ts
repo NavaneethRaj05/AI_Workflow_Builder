@@ -21,15 +21,20 @@ export default async function handler(req: Request, res: Response) {
   }
 
   try {
-    const { input, session_variables } = req.body;
-    const { workflow_id } = input;
+    const input = req.body.input || req.body;
+    const workflow_id = input?.workflow_id || req.body?.workflow_id;
+    const session_variables = req.body.session_variables || {};
 
-    // Extract caller's user ID from Hasura session variables
-    const callerId: string = session_variables?.['x-hasura-user-id'];
-    const callerRole: string = session_variables?.['x-hasura-role'];
+    // Extract caller's user ID from Hasura session variables or auth header
+    const callerId: string = session_variables?.['x-hasura-user-id'] || (req as any).user?.id;
+    const callerRole: string = session_variables?.['x-hasura-role'] || 'user';
 
     if (!callerId) {
       return res.status(401).json({ message: 'Unauthorized: No user ID in session' });
+    }
+
+    if (!workflow_id) {
+      return res.status(400).json({ message: 'Bad request: workflow_id is required' });
     }
 
     // Fetch workflow to get org_id
@@ -122,7 +127,7 @@ export default async function handler(req: Request, res: Response) {
         triggered_by: callerId,
         trigger_type: 'manual',
         status: 'pending',
-        input: input.initial_input || {},
+        input: input?.initial_input || {},
       },
     });
 
@@ -132,8 +137,6 @@ export default async function handler(req: Request, res: Response) {
     // EXECUTE WORKFLOW (async — respond immediately then execute)
     // Using a fire-and-forget pattern with Promise to avoid timeout
     // =========================================================
-    // Respond to Hasura immediately (Action timeout is typically 30s)
-    // Execution continues asynchronously
     res.status(200).json({
       run_id: runId,
       status: 'started',
@@ -146,7 +149,7 @@ export default async function handler(req: Request, res: Response) {
       runId,
       workflow.org_id,
       callerId,
-      input.initial_input || {}
+      input?.initial_input || {}
     ).catch(error => {
       console.error(`[triggerWorkflowRun] Execution error for run ${runId}:`, error);
     });
