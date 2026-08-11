@@ -3,6 +3,7 @@
 import { GraphQLClient, gql } from 'graphql-request';
 
 const gqlUrl = process.env.NHOST_GRAPHQL_URL ||
+  (process.env.NHOST_BACKEND_URL ? `${process.env.NHOST_BACKEND_URL.replace(/\/$/, '')}/v1/graphql` : null) ||
   (process.env.NHOST_SUBDOMAIN
     ? `https://${process.env.NHOST_SUBDOMAIN}.graphql.${process.env.NHOST_REGION || 'ap-south-1'}.nhost.run/v1`
     : 'https://bykigbyxcjykjxbhakqc.graphql.ap-south-1.nhost.run/v1');

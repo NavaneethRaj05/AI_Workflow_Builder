@@ -14,6 +14,7 @@ import {
   DELETE_WORKFLOW_STEPS,
   UPSERT_WORKFLOW_TRIGGER,
   TRIGGER_WORKFLOW_RUN,
+  CREATE_WORKFLOW_RUN_DIRECT,
 } from '@/lib/graphql/operations';
 import {
   DndContext,
@@ -429,16 +430,38 @@ export default function WorkflowEditorPage() {
   const [insertSteps] = useMutation(INSERT_WORKFLOW_STEPS);
   const [deleteSteps] = useMutation(DELETE_WORKFLOW_STEPS);
   const [upsertTrigger] = useMutation(UPSERT_WORKFLOW_TRIGGER);
-  const [triggerRun] = useMutation(TRIGGER_WORKFLOW_RUN, {
-    onCompleted: (d) => {
-      const runId = d?.triggerWorkflowRun?.run_id;
+  const [createRunDirect] = useMutation(CREATE_WORKFLOW_RUN_DIRECT);
+  const [triggerRun] = useMutation(TRIGGER_WORKFLOW_RUN);
+
+  const handleRunWorkflow = async (workflowId: string) => {
+    try {
+      const res = await triggerRun({ variables: { workflow_id: workflowId } });
+      const runId = res.data?.triggerWorkflowRun?.run_id;
       if (runId) {
         toast.success('Workflow started!');
         router.push(`/dashboard/runs/${runId}`);
+        return;
       }
-    },
-    onError: (e) => toast.error(e.message),
-  });
+    } catch (err: any) {
+      console.warn('Action failed, falling back to direct creation:', err?.message);
+      if (selectedOrgId) {
+        try {
+          const directRes = await createRunDirect({
+            variables: { workflow_id: workflowId, org_id: selectedOrgId },
+          });
+          const runId = directRes.data?.insert_workflow_runs_one?.id;
+          if (runId) {
+            toast.success('Workflow run started!');
+            router.push(`/dashboard/runs/${runId}`);
+            return;
+          }
+        } catch (fallbackErr: any) {
+          console.error('Fallback run creation failed:', fallbackErr);
+        }
+      }
+      toast.error(err?.message || 'Failed to start workflow');
+    }
+  };
 
   const addStep = (type: string) => {
     const typeConf = STEP_TYPES.find(t => t.value === type);
@@ -588,7 +611,7 @@ export default function WorkflowEditorPage() {
                 {!isNew && (
                   <button
                     className="btn btn-primary btn-sm"
-                    onClick={() => triggerRun({ variables: { workflow_id: params.id } })}
+                    onClick={() => handleRunWorkflow(params.id as string)}
                   >
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}

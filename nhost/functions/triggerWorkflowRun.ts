@@ -86,28 +86,37 @@ export default async function handler(req: Request, res: Response) {
 
     const org = orgData?.organizations_by_pk;
     const now = new Date();
-    const resetAt = new Date(org.quota_reset_at);
+    const resetAt = org?.quota_reset_at ? new Date(org.quota_reset_at) : new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
     // Auto-reset quota if past reset date
-    let quotaUsed = org.quota_used;
-    if (now >= resetAt) {
-      await adminClient.request(gql`
-        mutation ResetQuota($id: uuid!) {
-          update_organizations_by_pk(
-            pk_columns: {id: $id}
-            _set: {
-              quota_used: 0,
-              quota_reset_at: "${new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString()}"
-            }
-          ) { id }
-        }
-      `, { id: workflow.org_id });
-      quotaUsed = 0;
+    let quotaUsed = org?.quota_used ?? 0;
+    const quotaLimit = org?.quota_limit ?? 1000;
+
+    if (org?.quota_reset_at && now >= resetAt) {
+      try {
+        await adminClient.request(gql`
+          mutation ResetQuota($id: uuid!, $nextReset: timestamptz!) {
+            update_organizations_by_pk(
+              pk_columns: {id: $id}
+              _set: {
+                quota_used: 0,
+                quota_reset_at: $nextReset
+              }
+            ) { id }
+          }
+        `, {
+          id: workflow.org_id,
+          nextReset: new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString(),
+        });
+        quotaUsed = 0;
+      } catch (quotaErr) {
+        console.warn('[triggerWorkflowRun] Quota reset warning:', quotaErr);
+      }
     }
 
-    if (quotaUsed >= org.quota_limit) {
+    if (quotaUsed >= quotaLimit) {
       return res.status(429).json({
-        message: `Quota exhausted: ${quotaUsed}/${org.quota_limit} runs used this month`,
+        message: `Quota exhausted: ${quotaUsed}/${quotaLimit} runs used this month`,
       });
     }
 

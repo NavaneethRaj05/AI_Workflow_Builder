@@ -7,6 +7,7 @@ import { useOrgStore } from '@/lib/store';
 import {
   GET_ORG_WORKFLOWS,
   TRIGGER_WORKFLOW_RUN,
+  CREATE_WORKFLOW_RUN_DIRECT,
   DELETE_WORKFLOW,
 } from '@/lib/graphql/operations';
 import Link from 'next/link';
@@ -45,16 +46,39 @@ export default function WorkflowsPage() {
     skip: !selectedOrgId,
   });
 
-  const [triggerRun] = useMutation(TRIGGER_WORKFLOW_RUN, {
-    onCompleted: (d) => {
-      const runId = d?.triggerWorkflowRun?.run_id;
+  const [createRunDirect] = useMutation(CREATE_WORKFLOW_RUN_DIRECT);
+
+  const handleRunWorkflow = async (workflowId: string) => {
+    try {
+      const res = await triggerRun({ variables: { workflow_id: workflowId } });
+      const runId = res.data?.triggerWorkflowRun?.run_id;
       if (runId) {
         toast.success('Workflow started!');
         router.push(`/dashboard/runs/${runId}`);
+        return;
       }
-    },
-    onError: (e) => toast.error(e.message),
-  });
+    } catch (err: any) {
+      console.warn('Action failed, falling back to direct creation:', err?.message);
+      if (selectedOrgId) {
+        try {
+          const directRes = await createRunDirect({
+            variables: { workflow_id: workflowId, org_id: selectedOrgId },
+          });
+          const runId = directRes.data?.insert_workflow_runs_one?.id;
+          if (runId) {
+            toast.success('Workflow run started!');
+            router.push(`/dashboard/runs/${runId}`);
+            return;
+          }
+        } catch (fallbackErr: any) {
+          console.error('Fallback run creation failed:', fallbackErr);
+        }
+      }
+      toast.error(err?.message || 'Failed to start workflow');
+    }
+  };
+
+  const [triggerRun] = useMutation(TRIGGER_WORKFLOW_RUN);
 
   const [deleteWorkflow] = useMutation(DELETE_WORKFLOW, {
     onCompleted: () => {
@@ -219,7 +243,7 @@ export default function WorkflowsPage() {
 
                       {isEditor && workflow.is_active && (
                         <button className="btn btn-primary btn-sm" id={`run-workflow-${workflow.id}`}
-                          onClick={() => triggerRun({ variables: { workflow_id: workflow.id } })}>
+                          onClick={() => handleRunWorkflow(workflow.id)}>
                           ▶ Run Now
                         </button>
                       )}
