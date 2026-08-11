@@ -293,6 +293,20 @@ export const TRIGGER_WORKFLOW_RUN = gql`
   }
 `;
 
+export const CREATE_WORKFLOW_RUN_DIRECT = gql`
+  mutation CreateWorkflowRunDirect($workflow_id: uuid!, $org_id: uuid!) {
+    insert_workflow_runs_one(object: {
+      workflow_id: $workflow_id
+      org_id: $org_id
+      status: pending
+      trigger_type: manual
+    }) {
+      id
+      status
+    }
+  }
+`;
+
 export const APPROVE_STEP = gql`
   mutation ApproveStep($step_run_id: uuid!, $comment: String) {
     approveStep(step_run_id: $step_run_id, comment: $comment) {
