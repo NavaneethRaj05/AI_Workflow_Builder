@@ -37,7 +37,7 @@
 
   [auth.session]
     [auth.session.accessToken]
-      expiresIn = 900
+      expiresIn = 3600
 
 [postgres]
   version = "14.20-20251217-1"
