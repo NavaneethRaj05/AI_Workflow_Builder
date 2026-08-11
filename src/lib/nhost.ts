@@ -12,7 +12,7 @@ export const nhost = new NhostClient({
   authUrl: isBrowser ? `${window.location.origin}/nhost/auth` : `https://${subdomain}.auth.${region}.nhost.run/v1`,
   graphqlUrl: isBrowser ? `${window.location.origin}/nhost/graphql` : `https://${subdomain}.graphql.${region}.nhost.run/v1`,
   storageUrl: `https://${subdomain}.storage.${region}.nhost.run/v1`,
-  functionsUrl: `https://${subdomain}.functions.${region}.nhost.run/v1`,
+  functionsUrl: isBrowser ? `${window.location.origin}/nhost/functions` : `https://${subdomain}.functions.${region}.nhost.run/v1`,
 });
 
 export default nhost;
