@@ -2,8 +2,8 @@
   version = "v2.49.2-ce"
 
   [[hasura.jwtSecrets]]
-    type = "HS256"
-    key = "{{ secrets.MY_JWT_SECRET }}"
+    type = "RS256"
+    key = "{{ secrets.NHOST_JWT_PUBLIC_KEY }}"
 
   [hasura.settings]
     corsDomain = ["*"]
