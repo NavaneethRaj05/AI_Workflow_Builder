@@ -182,14 +182,19 @@ export async function executeWorkflow(
 
 // ============================================================
 // Continue a workflow from a specific step (after approval)
+// FIX: Accept workflowId and fetch the FULL ordered step list from
+// workflow_steps — not from step_runs (which only has already-run steps).
+// Without this, steps after the approval gate were never executed.
 // ============================================================
 export async function continueWorkflowFromStep(
   runId: string,
+  workflowId: string,
   resumeFromStepId: string,
   approverOutput: any = {}
 ) {
+  // Fetch the run for org context
   const runData: any = await adminClient.request(gql`
-    query GetRun($id: uuid!) {
+    query GetRunForResume($id: uuid!) {
       workflow_runs_by_pk(id: $id) {
         id
         org_id
@@ -200,7 +205,7 @@ export async function continueWorkflowFromStep(
           status
           output
           workflow_step_id
-          workflow_step { step_order step_type config name is_enabled id }
+          workflow_step { step_order }
         }
       }
     }
@@ -209,14 +214,18 @@ export async function continueWorkflowFromStep(
   const run = runData?.workflow_runs_by_pk;
   if (!run) throw new Error('Run not found');
 
-  // Find resume point
-  const allSteps = run.step_runs
-    .map((sr: any) => sr.workflow_step)
+  // FIX: Fetch the COMPLETE workflow step list (not just already-run step_runs)
+  const workflowData: any = await adminClient.request(GET_WORKFLOW_WITH_STEPS, {
+    workflow_id: workflowId || run.workflow_id,
+  });
+
+  const allSteps = (workflowData?.workflows_by_pk?.workflow_steps || [])
     .filter((s: any) => s.is_enabled)
     .sort((a: any, b: any) => a.step_order - b.step_order);
 
+  // Find the approval_gate step's position and resume from the NEXT step
   const resumeIndex = allSteps.findIndex((s: any) => s.id === resumeFromStepId);
-  if (resumeIndex === -1) throw new Error('Resume step not found');
+  if (resumeIndex === -1) throw new Error('Resume step not found in workflow');
 
   const remainingSteps = allSteps.slice(resumeIndex + 1); // Steps AFTER the approval gate
 

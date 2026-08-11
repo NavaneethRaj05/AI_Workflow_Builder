@@ -109,6 +109,7 @@ export default async function handler(req: Request, res: Response) {
 
     // =========================================================
     // UPDATE STEP RUN: Mark as approved
+    // FIX: status must be a quoted string in the GQL variable set
     // =========================================================
     const now = new Date().toISOString();
     await adminClient.request(gql`
@@ -116,7 +117,7 @@ export default async function handler(req: Request, res: Response) {
         update_step_runs_by_pk(
           pk_columns: {id: $id}
           _set: {
-            status: succeeded
+            status: "succeeded"
             approved_by: $approver_id
             approved_at: $now
             approval_comment: $comment
@@ -138,6 +139,7 @@ export default async function handler(req: Request, res: Response) {
     // =========================================================
     const pausedAtStepId = stepRun.workflow_run?.paused_at_step_id || stepRun.workflow_step?.id;
     const runId = stepRun.workflow_run_id;
+    const workflowId = stepRun.workflow_run?.workflow_id;
 
     // Respond to client first
     res.status(200).json({
@@ -148,6 +150,7 @@ export default async function handler(req: Request, res: Response) {
     // Continue execution asynchronously
     continueWorkflowFromStep(
       runId,
+      workflowId,
       pausedAtStepId,
       { approved: true, approved_by: approverId, comment }
     ).catch(error => {

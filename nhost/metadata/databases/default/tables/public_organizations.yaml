@@ -53,13 +53,11 @@ select_permissions:
 insert_permissions:
   - role: user
     permission:
+      # Users can only set name and slug — quota is controlled by the server
       check: {}
       columns:
         - name
         - slug
-        - quota_limit
-        - quota_used
-        - quota_reset_at
 
 update_permissions:
   - role: user
