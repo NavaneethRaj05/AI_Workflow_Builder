@@ -307,6 +307,30 @@ export const CREATE_WORKFLOW_RUN_DIRECT = gql`
   }
 `;
 
+export const UPDATE_WORKFLOW_RUN_STATUS = gql`
+  mutation UpdateWorkflowRunStatus($id: uuid!, $status: String!, $completed_at: timestamptz, $output: jsonb, $error: String) {
+    update_workflow_runs(where: { id: { _eq: $id } }, _set: { status: $status, completed_at: $completed_at, output: $output, error: $error }) {
+      affected_rows
+    }
+  }
+`;
+
+export const INSERT_STEP_RUN = gql`
+  mutation InsertStepRun($object: step_runs_insert_input!) {
+    insert_step_runs_one(object: $object) {
+      id
+    }
+  }
+`;
+
+export const UPDATE_STEP_RUN_STATUS = gql`
+  mutation UpdateStepRunStatus($id: uuid!, $status: String!, $completed_at: timestamptz, $output: jsonb, $error: String, $attempt_count: Int) {
+    update_step_runs(where: { id: { _eq: $id } }, _set: { status: $status, completed_at: $completed_at, output: $output, error: $error, attempt_count: $attempt_count }) {
+      affected_rows
+    }
+  }
+`;
+
 export const APPROVE_STEP = gql`
   mutation ApproveStep($step_run_id: uuid!, $comment: String) {
     approveStep(step_run_id: $step_run_id, comment: $comment) {
