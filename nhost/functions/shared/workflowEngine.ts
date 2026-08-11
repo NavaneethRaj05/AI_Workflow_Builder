@@ -54,6 +54,20 @@ export async function executeWorkflow(
 
   const steps: WorkflowStep[] = workflow.workflow_steps.filter((s: WorkflowStep) => s.is_enabled);
 
+  // Fetch existing step_runs for this run to avoid duplicate execution
+  const existingStepRunsData: any = await adminClient.request(gql`
+    query GetExistingStepRuns($runId: uuid!) {
+      step_runs(where: { workflow_run_id: { _eq: $runId } }) {
+        id
+        workflow_step_id
+        status
+        output
+      }
+    }
+  `, { runId });
+
+  const existingStepRuns: any[] = existingStepRunsData?.step_runs || [];
+
   // Update run to 'running'
   await adminClient.request(UPDATE_WORKFLOW_RUN, {
     id: runId,
@@ -64,17 +78,42 @@ export async function executeWorkflow(
   let runFailed = false;
 
   for (const step of steps) {
-    // Create step_run record
-    const stepRunData: any = await adminClient.request(CREATE_STEP_RUN, {
-      object: {
-        workflow_run_id: runId,
-        workflow_step_id: step.id,
-        status: 'pending',
-        input: previousOutput,
-      },
-    });
+    const existing = existingStepRuns.find((sr: any) => sr.workflow_step_id === step.id);
 
-    const stepRunId = stepRunData?.insert_step_runs_one?.id;
+    // If step already completed successfully, reuse its output and skip re-executing
+    if (existing && existing.status === 'succeeded') {
+      previousOutput = existing.output ?? previousOutput;
+      continue;
+    }
+
+    // If step is already awaiting approval, ensure run status is paused and exit
+    if (existing && (existing.status === 'awaiting_approval' || existing.status === 'paused')) {
+      await adminClient.request(UPDATE_WORKFLOW_RUN, {
+        id: runId,
+        set: { status: 'paused', paused_at_step_id: step.id },
+      });
+      return { status: 'paused', paused_at_step_id: step.id, run_id: runId };
+    }
+
+    let stepRunId = existing?.id;
+
+    if (!stepRunId) {
+      // Create step_run record if it does not exist
+      const stepRunData: any = await adminClient.request(CREATE_STEP_RUN, {
+        object: {
+          workflow_run_id: runId,
+          workflow_step_id: step.id,
+          status: 'pending',
+          input: previousOutput,
+        },
+      });
+      stepRunId = stepRunData?.insert_step_runs_one?.id;
+    }
+
+    if (!stepRunId) {
+      console.error(`[WorkflowEngine] Could not create or find step_run for step ${step.id}`);
+      continue;
+    }
 
     // Mark step as running
     await adminClient.request(UPDATE_STEP_RUN, {

@@ -256,20 +256,21 @@ export default function RunMonitorPage() {
   const [triggerError, setTriggerError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Recovery: if the run is still pending (or stuck running with no steps),
-    // call the server-side API route which uses admin secret — no user token needed.
-
-    // Guard: params.runId must be a valid non-empty string (not undefined or the template literal)
+    // Guard: params.runId must be a valid non-empty string
     const runId = typeof params.runId === 'string' && params.runId && params.runId !== '[runId]'
       ? params.runId
       : null;
-    if (!runId) return;
+    if (!runId || !run || hasTriggered) return;
 
-    const isStuck =
-      run?.status === 'pending' ||
-      (run?.status === 'running' && stepRuns.length === 0);
+    // Do NOT trigger recovery if the run is already 'running', 'completed', 'paused', or 'failed'
+    if (run.status !== 'pending') return;
 
-    if (!run || !isStuck || hasTriggered) return;
+    // Only recovery-trigger if the run has been pending for at least 8 seconds
+    const startedAtTime = run.started_at ? new Date(run.started_at).getTime() : Date.now();
+    const isStuckPending = !isNaN(startedAtTime) && (Date.now() - startedAtTime > 8000);
+
+    if (!isStuckPending) return;
+
     setHasTriggered(true);
 
     const token = nhost.auth.getAccessToken();
@@ -291,7 +292,7 @@ export default function RunMonitorPage() {
     }).catch((e) => {
       console.warn('[RunMonitor] recovery warning:', e);
     });
-  }, [run?.status, stepRuns.length, hasTriggered, params.runId]);
+  }, [run?.status, run?.started_at, hasTriggered, params.runId]);
 
   const statusConf = STATUS_CONFIG[run?.status] || STATUS_CONFIG.pending;
   const isRunning = run?.status === 'running';

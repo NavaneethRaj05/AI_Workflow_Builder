@@ -92,6 +92,22 @@ export default async function handler(req: Request, res: Response) {
       return res.status(404).json({ message: 'Workflow run not found' });
     }
 
+    if (run.status === 'completed' || run.status === 'failed') {
+      return res.status(200).json({
+        run_id: run.id,
+        status: run.status,
+        message: `Workflow run is already ${run.status}`,
+      });
+    }
+
+    if (run.status === 'running') {
+      return res.status(200).json({
+        run_id: run.id,
+        status: 'running',
+        message: 'Workflow execution is already in progress',
+      });
+    }
+
     // Verify caller org membership if callerId is known.
     // When no callerId is present (e.g. fallback direct-insert path), the admin
     // secret on the GraphQL client already authorises all DB operations, so we
