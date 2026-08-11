@@ -25,6 +25,9 @@ export default async function handler(req: Request, res: Response) {
     const workflow_id = input?.workflow_id || req.body?.workflow_id;
     const session_variables = req.body.session_variables || {};
 
+    console.log('[triggerWorkflowRun] Incoming headers:', JSON.stringify(req.headers));
+    console.log('[triggerWorkflowRun] Incoming body keys:', Object.keys(req.body || {}));
+
     // Extract caller's user ID from Hasura session variables, headers, auth header, or req.user
     let callerId: string =
       session_variables?.['x-hasura-user-id'] ||
