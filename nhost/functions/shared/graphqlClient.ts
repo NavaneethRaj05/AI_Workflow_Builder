@@ -4,8 +4,13 @@ import { GraphQLClient, gql } from 'graphql-request';
 
 const gqlUrl = 'https://bykigbyxcjykjxbhakqc.graphql.ap-south-1.nhost.run/v1';
 
+// Hardcoded fallback — NHOST_ADMIN_SECRET system var is not injected on this project
+const HARDCODED_ADMIN_SECRET = 'FlowForge2024!';
+
 const getAdminSecret = (): string | null => {
-  const secret = process.env.HASURA_GRAPHQL_ADMIN_SECRET || process.env.NHOST_ADMIN_SECRET;
+  const secret = process.env.HASURA_GRAPHQL_ADMIN_SECRET ||
+    process.env.NHOST_ADMIN_SECRET ||
+    HARDCODED_ADMIN_SECRET;
   if (!secret || secret === 'your-admin-secret' || secret === '01234567890123456789012345678912') {
     return null;
   }
