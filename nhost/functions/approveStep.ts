@@ -34,8 +34,8 @@ export default async function handler(req: Request, res: Response) {
 
     // Fetch step_run with full context
     const stepRunData: any = await client.request(gql`
-      query GetStepRunForApproval($id: uuid!) {
-        step_runs_by_pk(id: $id) {
+      query GetStepRunWithDetails($step_run_id: uuid!) {
+        step_runs(where: { id: { _eq: $step_run_id } }) {
           id
           status
           workflow_run_id
@@ -57,9 +57,9 @@ export default async function handler(req: Request, res: Response) {
           }
         }
       }
-    `, { id: step_run_id });
+    `, { step_run_id });
 
-    const stepRun = stepRunData?.step_runs_by_pk;
+    const stepRun = stepRunData?.step_runs?.[0] || stepRunData?.step_runs_by_pk;
     if (!stepRun) {
       return res.status(404).json({ message: 'Step run not found' });
     }
@@ -91,7 +91,7 @@ export default async function handler(req: Request, res: Response) {
     // 2. The role check must match the workflow's org, not any org
     // 3. Database permissions can't capture this mid-run context
     // =========================================================
-    const approverRole = await getUserOrgRole(approverId, orgId);
+    const approverRole = await getUserOrgRole(approverId, orgId, req);
 
     if (!approverRole) {
       return res.status(403).json({

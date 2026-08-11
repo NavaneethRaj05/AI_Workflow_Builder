@@ -179,8 +179,8 @@ export const DB_WRITE_RESULT = gql`
 // ============================================================
 // Helper: Get user role in org
 // ============================================================
-export async function getUserOrgRole(userId: string, orgId: string): Promise<string | null> {
-  const client = getAdminClient();
+export async function getUserOrgRole(userId: string, orgId: string, req?: any): Promise<string | null> {
+  const client = getAdminClient(req);
   const data: any = await client.request(GET_USER_ORG_ROLE, {
     user_id: userId,
     org_id: orgId,

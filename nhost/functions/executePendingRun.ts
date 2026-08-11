@@ -72,7 +72,7 @@ export default async function handler(req: Request, res: Response) {
 
     // Verify caller org membership if callerId is known
     if (callerId) {
-      const userRole = await getUserOrgRole(callerId, run.org_id);
+      const userRole = await getUserOrgRole(callerId, run.org_id, req);
       if (!userRole || !['owner', 'editor'].includes(userRole)) {
         return res.status(403).json({ message: 'Forbidden: Owner or editor role required' });
       }

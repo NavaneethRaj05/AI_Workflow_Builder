@@ -74,7 +74,7 @@ export default async function handler(req: Request, res: Response) {
     // Fetch workflow to get org_id
     const workflowData: any = await client.request(gql`
       query GetWorkflowOrg($id: uuid!) {
-        workflows_by_pk(id: $id) {
+        workflows(where: { id: { _eq: $id } }) {
           id
           org_id
           is_active
@@ -83,7 +83,7 @@ export default async function handler(req: Request, res: Response) {
       }
     `, { id: workflow_id });
 
-    const workflow = workflowData?.workflows_by_pk;
+    const workflow = workflowData?.workflows?.[0] || workflowData?.workflows_by_pk;
     if (!workflow) {
       return res.status(404).json({ message: 'Workflow not found' });
     }
@@ -96,7 +96,7 @@ export default async function handler(req: Request, res: Response) {
     // LAYER 1: Verify caller is member of the workflow's org
     // This prevents cross-org attacks even if someone guesses an ID
     // =========================================================
-    const userRole = await getUserOrgRole(callerId, workflow.org_id);
+    const userRole = await getUserOrgRole(callerId, workflow.org_id, req);
     if (!userRole) {
       return res.status(403).json({ message: 'Forbidden: You are not a member of this organization' });
     }
