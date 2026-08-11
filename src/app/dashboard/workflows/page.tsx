@@ -121,7 +121,7 @@ export default function WorkflowsPage() {
       if (!deletedId) return;
       cache.modify({
         fields: {
-          workflows(existing: any[] = [], { readField }) {
+          workflows(existing: readonly any[] = [], { readField }) {
             return existing.filter(ref => readField('id', ref) !== deletedId);
           },
         },
