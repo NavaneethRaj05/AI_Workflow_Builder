@@ -24,7 +24,6 @@
     version = 22
 
 [auth]
-  version = "0.50.1"
 
   [auth.redirections]
     clientUrl = "https://ai-workflow-builder-sable.vercel.app"
@@ -35,11 +34,7 @@
       "https://ai-workflow-builder-sable.vercel.app/**"
     ]
 
-  [auth.signUp]
-    enabled = true
-
   [auth.method.emailPassword]
-    enabled = true
     emailVerificationRequired = false
 
   [auth.session]
