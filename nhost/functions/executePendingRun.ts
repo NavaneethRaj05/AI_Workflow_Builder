@@ -16,6 +16,7 @@ export default async function handler(req: Request, res: Response) {
   }
 
   try {
+    console.log('[executePendingRun] Env keys:', Object.keys(process.env).filter(k => !k.includes('PASS') && !k.includes('KEY')));
     const input = req.body.input || req.body;
     const run_id = input?.run_id || req.body?.run_id;
     const session_variables = req.body.session_variables || {};
