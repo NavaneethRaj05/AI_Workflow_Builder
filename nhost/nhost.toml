@@ -24,7 +24,6 @@
     version = 22
 
 [auth]
-  version = "0.50.1"
 
   [auth.redirections]
     clientUrl = "https://ai-workflow-builder-sable.vercel.app"
