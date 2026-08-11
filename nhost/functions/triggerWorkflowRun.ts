@@ -29,9 +29,11 @@ export default async function handler(req: Request, res: Response) {
     let callerId: string = session_variables?.['x-hasura-user-id'] || (req as any).user?.id;
     let callerRole: string = session_variables?.['x-hasura-role'] || 'user';
 
-    if (!callerId && req.headers.authorization) {
+    const authHeader = (req.headers.authorization || (req.headers as any).Authorization) as string;
+
+    if (!callerId && authHeader) {
       try {
-        const token = req.headers.authorization.replace('Bearer ', '');
+        const token = authHeader.replace(/^Bearer\s+/i, '');
         const payloadBase64 = token.split('.')[1];
         if (payloadBase64) {
           const decoded = JSON.parse(Buffer.from(payloadBase64, 'base64').toString('utf-8'));
