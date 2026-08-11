@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { Request, Response } from 'express';
-import { getAdminClient, getUserOrgRole } from './shared/graphqlClient';
+import { getAdminClient, getUserOrgRole, UPDATE_WORKFLOW_RUN } from './shared/graphqlClient';
 import { executeWorkflow } from './shared/workflowEngine';
 import { gql } from 'graphql-request';
 
@@ -103,27 +103,40 @@ export default async function handler(req: Request, res: Response) {
       }
     }
 
-    // Respond immediately
+    // Respond immediately so the browser doesn't hang, then execute
+    // synchronously with a timeout guard so the run never stays stuck.
+    // We can't truly respond-then-continue in Nhost functions (no background
+    // worker), so we use a timeout race and mark as failed if we exceed 55 s.
     res.status(200).json({
       run_id: run.id,
       status: 'started',
       message: 'Workflow execution started',
     });
 
-    // Execute asynchronously
-    executeWorkflow(
-      run.workflow_id,
-      run.id,
-      run.org_id,
-      callerId || null,
-      run.input || {},
-      req
-    ).catch(async (err) => {
+    const EXEC_TIMEOUT_MS = 55_000;
+    const timeoutGuard = new Promise<{ status: string }>((resolve) =>
+      setTimeout(() => resolve({ status: 'timeout' }), EXEC_TIMEOUT_MS)
+    );
+
+    try {
+      const result = await Promise.race([
+        executeWorkflow(run.workflow_id, run.id, run.org_id, callerId || null, run.input || {}, req),
+        timeoutGuard,
+      ]);
+
+      if ((result as any).status === 'timeout') {
+        await client.request(UPDATE_WORKFLOW_RUN, {
+          id: run.id,
+          set: {
+            status: 'failed',
+            completed_at: new Date().toISOString(),
+            output: { error: 'Execution timed out after 55 s' },
+          },
+        });
+      }
+    } catch (err: any) {
       console.error(`[executePendingRun] Error executing run ${run.id}:`, err);
-      // Attempt to mark run as failed so it doesn't stay stuck as pending
       try {
-        const { UPDATE_WORKFLOW_RUN } = await import('./shared/graphqlClient');
-        const { gql: gqlTag } = await import('graphql-request');
         await client.request(UPDATE_WORKFLOW_RUN, {
           id: run.id,
           set: {
@@ -135,7 +148,7 @@ export default async function handler(req: Request, res: Response) {
       } catch (updateErr) {
         console.error(`[executePendingRun] Failed to mark run ${run.id} as failed:`, updateErr);
       }
-    });
+    }
 
   } catch (error: any) {
     console.error('[executePendingRun] Error:', error);
@@ -145,7 +158,6 @@ export default async function handler(req: Request, res: Response) {
     if (run_id) {
       try {
         const failClient = getAdminClient(req);
-        const { UPDATE_WORKFLOW_RUN } = await import('./shared/graphqlClient');
         await failClient.request(UPDATE_WORKFLOW_RUN, {
           id: run_id,
           set: {

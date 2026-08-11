@@ -51,49 +51,65 @@ export default function WorkflowsPage() {
   const [createRunDirect] = useMutation(CREATE_WORKFLOW_RUN_DIRECT);
 
   const handleRunWorkflow = async (workflowId: string) => {
+    let runId: string | null = null;
+
     try {
       const res = await triggerRun({ variables: { workflow_id: workflowId } });
-      const runId = res.data?.triggerWorkflowRun?.run_id;
+      runId = res.data?.triggerWorkflowRun?.run_id || null;
       if (runId) {
         toast.success('Workflow started!');
         router.push(`/dashboard/runs/${runId}`);
         return;
       }
     } catch (err: any) {
-      console.warn('Hasura Action failed, attempting direct run creation:', err?.message);
-    }
-
-    if (selectedOrgId) {
-      try {
-        const directRes = await createRunDirect({
-          variables: { workflow_id: workflowId, org_id: selectedOrgId },
-        });
-        const runId = directRes.data?.insert_workflow_runs_one?.id;
-        if (runId) {
-          toast.success('Workflow run started!');
-          // Use fetch directly with the current access token instead of the Nhost SDK
-          // to avoid the token-refresh loop that causes the 401 → 500 cascade.
-          const token = nhost.auth.getAccessToken();
-          fetch('/nhost/functions/executePendingRun', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-            body: JSON.stringify({ run_id: runId }),
-          }).catch((e) => {
-            console.warn('executePendingRun fetch warning:', e);
-          });
-          router.push(`/dashboard/runs/${runId}`);
-          return;
-        }
-      } catch (fallbackErr: any) {
-        console.error('Direct run creation failed:', fallbackErr);
-        toast.error(fallbackErr?.message || 'Failed to start workflow');
+      const msg: string = err?.graphQLErrors?.[0]?.message || err?.message || '';
+      if (msg.includes('Quota exhausted') || msg.includes('Forbidden') || msg.includes('Unauthorized')) {
+        toast.error(msg, { duration: 6000 });
         return;
       }
+      console.warn('[Run] Hasura Action failed, trying direct fallback:', msg);
     }
-    toast.error('Failed to start workflow');
+
+    if (!selectedOrgId) {
+      toast.error('No organization selected');
+      return;
+    }
+
+    try {
+      const directRes = await createRunDirect({
+        variables: { workflow_id: workflowId, org_id: selectedOrgId },
+      });
+      runId = directRes.data?.insert_workflow_runs_one?.id || null;
+    } catch (fallbackErr: any) {
+      toast.error(fallbackErr?.message || 'Failed to create workflow run');
+      return;
+    }
+
+    if (!runId) {
+      toast.error('Failed to start workflow run');
+      return;
+    }
+
+    router.push(`/dashboard/runs/${runId}`);
+
+    const token = nhost.auth.getAccessToken();
+    fetch('/nhost/functions/executePendingRun', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ run_id: runId }),
+    }).then(async (r) => {
+      if (!r.ok) {
+        let body: any = {};
+        try { body = await r.json(); } catch { /* ignore */ }
+        const hint = body?.code === 'MISSING_ADMIN_SECRET'
+          ? 'NHOST_ADMIN_SECRET is not set. Go to Nhost Dashboard → Settings → Secrets.'
+          : body?.message || `Execution failed (${r.status})`;
+        toast.error(hint, { duration: 8000 });
+      }
+    }).catch(() => { /* run detail page handles recovery */ });
   };
 
   const [deleteWorkflow] = useMutation(DELETE_WORKFLOW, {

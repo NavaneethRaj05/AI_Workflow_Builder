@@ -256,11 +256,14 @@ export default function RunMonitorPage() {
   const [triggerError, setTriggerError] = useState<string | null>(null);
 
   useEffect(() => {
-    // If the run is still pending and has no step_runs yet, fire the
-    // executePendingRun function. This handles the fallback case where the
-    // workflow run was created directly (not via the Hasura Action) and the
-    // original fetch call may have failed silently.
-    if (!run || run.status !== 'pending' || stepRuns.length > 0 || hasTriggered) return;
+    // Recovery: if the run is still pending (or stuck running with no steps), fire
+    // executePendingRun. This is the safety net for any case where execution
+    // never started or was killed before updating the status.
+    const isStuck =
+      run?.status === 'pending' ||
+      (run?.status === 'running' && stepRuns.length === 0);
+
+    if (!run || !isStuck || hasTriggered) return;
     setHasTriggered(true);
 
     const token = nhost.auth.getAccessToken();
@@ -275,7 +278,7 @@ export default function RunMonitorPage() {
       if (!res.ok) {
         let errBody: any = {};
         try { errBody = await res.json(); } catch { /* ignore */ }
-        const hint = errBody?.hint || errBody?.code === 'MISSING_ADMIN_SECRET'
+        const hint = errBody?.code === 'MISSING_ADMIN_SECRET'
           ? 'NHOST_ADMIN_SECRET is not set in your Nhost project. Go to Nhost Dashboard → Settings → Secrets and add it.'
           : errBody?.message || `Execution failed (${res.status})`;
         toast.error(hint, { duration: 8000 });
@@ -285,7 +288,7 @@ export default function RunMonitorPage() {
     }).catch((e) => {
       console.warn('[RunMonitor] executePendingRun retry warning:', e);
     });
-  }, [run, stepRuns.length, hasTriggered, params.runId]);
+  }, [run?.status, stepRuns.length, hasTriggered, params.runId]);
 
   const statusConf = STATUS_CONFIG[run?.status] || STATUS_CONFIG.pending;
   const isRunning = run?.status === 'running';

@@ -1,11 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import { useQuery } from '@apollo/client';
+import { useQuery, useMutation } from '@apollo/client';
 import { useOrgStore } from '@/lib/store';
-import { GET_ORG_RUNS } from '@/lib/graphql/operations';
+import { GET_ORG_RUNS, DELETE_ORG_RUNS } from '@/lib/graphql/operations';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { useState } from 'react';
 
 const STATUS_CONFIG: Record<string, { color: string; icon: string }> = {
   pending: { color: '#64748b', icon: '⏳' },
@@ -18,22 +19,75 @@ const STATUS_CONFIG: Record<string, { color: string; icon: string }> = {
 
 export default function RunsPage() {
   const { selectedOrgId } = useOrgStore();
+  const [confirming, setConfirming] = useState(false);
 
-  const { data, loading } = useQuery(GET_ORG_RUNS, {
+  const { data, loading, refetch } = useQuery(GET_ORG_RUNS, {
     variables: { org_id: selectedOrgId, limit: 50 },
     skip: !selectedOrgId,
     fetchPolicy: 'cache-and-network',
   });
+
+  const [deleteOrgRuns, { loading: deleting }] = useMutation(DELETE_ORG_RUNS, {
+    onCompleted: () => {
+      setConfirming(false);
+      refetch();
+    },
+  });
+
+  const handleClear = () => {
+    if (!confirming) {
+      setConfirming(true);
+      return;
+    }
+    deleteOrgRuns({ variables: { org_id: selectedOrgId } });
+  };
 
   const allRuns = data?.workflow_runs || [];
 
   return (
     <div className="p-8 animate-fade-in">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Run History</h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-          {allRuns.length} run{allRuns.length !== 1 ? 's' : ''} across all workflows
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Run History</h1>
+            <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+              {allRuns.length} run{allRuns.length !== 1 ? 's' : ''} across all workflows
+            </p>
+          </div>
+          {allRuns.length > 0 && (
+            <div className="flex items-center gap-2">
+              {confirming && (
+                <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                  This will delete all run history. Are you sure?
+                </span>
+              )}
+              <button
+                onClick={handleClear}
+                disabled={deleting}
+                className="btn-secondary text-sm px-4 py-2 rounded-lg"
+                style={{
+                  background: confirming ? '#f8717120' : 'var(--bg-overlay)',
+                  color: confirming ? '#f87171' : 'var(--text-muted)',
+                  border: `1px solid ${confirming ? '#f8717140' : 'var(--border)'}`,
+                  cursor: deleting ? 'not-allowed' : 'pointer',
+                  opacity: deleting ? 0.6 : 1,
+                }}
+                onBlur={() => setConfirming(false)}
+              >
+                {deleting ? 'Clearing…' : confirming ? 'Confirm Clear' : 'Clear History'}
+              </button>
+              {confirming && (
+                <button
+                  onClick={() => setConfirming(false)}
+                  className="text-sm px-3 py-2 rounded-lg"
+                  style={{ color: 'var(--text-muted)', background: 'var(--bg-overlay)', border: '1px solid var(--border)' }}
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {loading && allRuns.length === 0 ? (

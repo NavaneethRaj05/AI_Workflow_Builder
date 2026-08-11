@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import type { Request, Response } from 'express';
-import { adminClient, getUserOrgRole, getAdminClient } from './shared/graphqlClient';
+import { adminClient, getUserOrgRole, getAdminClient, UPDATE_WORKFLOW_RUN } from './shared/graphqlClient';
 import { executeWorkflow } from './shared/workflowEngine';
 import { gql } from 'graphql-request';
 
@@ -186,26 +186,72 @@ export default async function handler(req: Request, res: Response) {
     const runId = runData?.insert_workflow_runs_one?.id;
 
     // =========================================================
-    // EXECUTE WORKFLOW (async — respond immediately then execute)
-    // Using a fire-and-forget pattern with Promise to avoid timeout
+    // EXECUTE WORKFLOW — run synchronously with a timeout guard
+    // so the run never gets stuck in "pending" forever.
+    // Nhost functions have ~60 s; we fail-safe at 55 s.
     // =========================================================
-    res.status(200).json({
-      run_id: runId,
-      status: 'started',
-      message: `Workflow "${workflow.name}" run started successfully`,
-    });
+    const EXEC_TIMEOUT_MS = 55_000;
 
-    // Execute asynchronously after responding
-    executeWorkflow(
-      workflow_id,
-      runId,
-      workflow.org_id,
-      callerId,
-      input?.initial_input || {},
-      req
-    ).catch(error => {
-      console.error(`[triggerWorkflowRun] Execution error for run ${runId}:`, error);
-    });
+    const timeoutGuard = new Promise<{ status: string; run_id: string }>(resolve =>
+      setTimeout(() => resolve({ status: 'timeout', run_id: runId }), EXEC_TIMEOUT_MS)
+    );
+
+    try {
+      const result = await Promise.race([
+        executeWorkflow(
+          workflow_id,
+          runId,
+          workflow.org_id,
+          callerId,
+          input?.initial_input || {},
+          req
+        ),
+        timeoutGuard,
+      ]);
+
+      if ((result as any).status === 'timeout') {
+        // Mark run as failed so it doesn't stay stuck
+        await client.request(UPDATE_WORKFLOW_RUN, {
+          id: runId,
+          set: {
+            status: 'failed',
+            completed_at: new Date().toISOString(),
+            output: { error: 'Execution timed out after 55 s' },
+          },
+        });
+        return res.status(200).json({
+          run_id: runId,
+          status: 'failed',
+          message: 'Workflow execution timed out',
+        });
+      }
+
+      return res.status(200).json({
+        run_id: runId,
+        status: (result as any).status || 'completed',
+        message: `Workflow "${workflow.name}" run finished with status: ${(result as any).status}`,
+      });
+    } catch (execError: any) {
+      console.error(`[triggerWorkflowRun] Execution error for run ${runId}:`, execError);
+      // Mark run as failed so it doesn't stay stuck in pending/running
+      try {
+        await client.request(UPDATE_WORKFLOW_RUN, {
+          id: runId,
+          set: {
+            status: 'failed',
+            completed_at: new Date().toISOString(),
+            error: execError.message || 'Execution failed',
+          },
+        });
+      } catch (e) {
+        console.error('[triggerWorkflowRun] Could not mark run as failed:', e);
+      }
+      return res.status(500).json({
+        run_id: runId,
+        status: 'failed',
+        message: execError.message || 'Workflow execution failed',
+      });
+    }
 
   } catch (error: any) {
     console.error('[triggerWorkflowRun] Error:', error);

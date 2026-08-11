@@ -435,58 +435,77 @@ export default function WorkflowEditorPage() {
   const [createRunDirect] = useMutation(CREATE_WORKFLOW_RUN_DIRECT);
 
   const handleRunWorkflow = async (workflowId: string) => {
+    // Primary path: use the Hasura Action (triggerWorkflowRun function)
+    // This runs synchronously — execution happens server-side while we navigate
+    // to the run detail page which shows live progress via WebSocket subscription.
+    let runId: string | null = null;
+
     try {
       const res = await triggerRun({ variables: { workflow_id: workflowId } });
-      const runId = res.data?.triggerWorkflowRun?.run_id;
+      runId = res.data?.triggerWorkflowRun?.run_id || null;
       if (runId) {
         toast.success('Workflow started!');
         router.push(`/dashboard/runs/${runId}`);
         return;
       }
     } catch (err: any) {
-      console.warn('Hasura Action failed, attempting direct run creation:', err?.message);
-    }
-
-    if (selectedOrgId) {
-      try {
-        const directRes = await createRunDirect({
-          variables: { workflow_id: workflowId, org_id: selectedOrgId },
-        });
-        const runId = directRes.data?.insert_workflow_runs_one?.id;
-        if (runId) {
-          toast.success('Workflow run started!');
-          // Use fetch directly to avoid SDK token-refresh 401 loop
-          const token = nhost.auth.getAccessToken();
-          fetch('/nhost/functions/executePendingRun', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-            body: JSON.stringify({ run_id: runId }),
-          }).then(async (res) => {
-            if (!res.ok) {
-              let errBody: any = {};
-              try { errBody = await res.json(); } catch { /* ignore */ }
-              if (errBody?.code === 'MISSING_ADMIN_SECRET') {
-                toast.error('Server config error: NHOST_ADMIN_SECRET not set in Nhost project. See Nhost Dashboard → Settings → Secrets.', { duration: 8000 });
-              } else {
-                console.warn('executePendingRun returned error:', errBody);
-              }
-            }
-          }).catch((e) => {
-            console.warn('executePendingRun fetch warning:', e);
-          });
-          router.push(`/dashboard/runs/${runId}`);
-          return;
-        }
-      } catch (fallbackErr: any) {
-        console.error('Direct run creation failed:', fallbackErr);
-        toast.error(fallbackErr?.message || 'Failed to start workflow');
+      // Check if it's a quota/permission error — surface it immediately
+      const msg: string = err?.graphQLErrors?.[0]?.message || err?.message || '';
+      if (msg.includes('Quota exhausted') || msg.includes('quota')) {
+        toast.error(msg, { duration: 6000 });
         return;
       }
+      if (msg.includes('Forbidden') || msg.includes('Unauthorized')) {
+        toast.error(msg, { duration: 6000 });
+        return;
+      }
+      console.warn('[Run] Hasura Action failed, trying direct fallback:', msg);
     }
-    toast.error('Failed to start workflow');
+
+    // Fallback path: create the run directly then call executePendingRun.
+    // Navigate immediately so the run detail page shows live progress.
+    if (!selectedOrgId) {
+      toast.error('No organization selected');
+      return;
+    }
+
+    try {
+      const directRes = await createRunDirect({
+        variables: { workflow_id: workflowId, org_id: selectedOrgId },
+      });
+      runId = directRes.data?.insert_workflow_runs_one?.id || null;
+    } catch (fallbackErr: any) {
+      toast.error(fallbackErr?.message || 'Failed to create workflow run');
+      return;
+    }
+
+    if (!runId) {
+      toast.error('Failed to start workflow run');
+      return;
+    }
+
+    // Navigate first so the user sees the live run monitor
+    router.push(`/dashboard/runs/${runId}`);
+
+    // Fire executePendingRun — the run detail page will also retry via useEffect
+    const token = nhost.auth.getAccessToken();
+    fetch('/nhost/functions/executePendingRun', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ run_id: runId }),
+    }).then(async (r) => {
+      if (!r.ok) {
+        let body: any = {};
+        try { body = await r.json(); } catch { /* ignore */ }
+        const hint = body?.code === 'MISSING_ADMIN_SECRET'
+          ? 'NHOST_ADMIN_SECRET is not set. Go to Nhost Dashboard → Settings → Secrets.'
+          : body?.message || `Execution failed (${r.status})`;
+        toast.error(hint, { duration: 8000 });
+      }
+    }).catch(() => { /* run detail page will show the error */ });
   };
 
   const addStep = (type: string) => {

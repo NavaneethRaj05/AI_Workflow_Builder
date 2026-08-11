@@ -22,11 +22,6 @@
 [functions]
   [functions.node]
     version = 22
-  [functions.environment]
-    NHOST_ADMIN_SECRET = "{{ secrets.HASURA_GRAPHQL_ADMIN_SECRET }}"
-    HASURA_GRAPHQL_ADMIN_SECRET = "{{ secrets.HASURA_GRAPHQL_ADMIN_SECRET }}"
-    NHOST_WEBHOOK_SECRET = "{{ secrets.NHOST_WEBHOOK_SECRET }}"
-    GROQ_API_KEY = "{{ secrets.GROQ_API_KEY }}"
 
 [auth]
 

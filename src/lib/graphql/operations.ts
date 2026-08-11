@@ -398,6 +398,14 @@ export const DELETE_WORKFLOW = gql`
   }
 `;
 
+export const DELETE_ORG_RUNS = gql`
+  mutation DeleteOrgRuns($org_id: uuid!) {
+    delete_workflow_runs(where: { org_id: { _eq: $org_id } }) {
+      affected_rows
+    }
+  }
+`;
+
 export const GET_ORG_RUNS = gql`
   query GetOrgRuns($org_id: uuid!, $limit: Int = 30) {
     workflow_runs(
