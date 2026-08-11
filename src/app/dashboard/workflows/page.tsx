@@ -14,6 +14,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
+import nhost from '@/lib/nhost';
 
 const STEP_TYPE_ICONS: Record<string, string> = {
   llm_call: '🤖',
@@ -70,6 +71,9 @@ export default function WorkflowsPage() {
         const runId = directRes.data?.insert_workflow_runs_one?.id;
         if (runId) {
           toast.success('Workflow run started!');
+          nhost.functions.call('executePendingRun', { run_id: runId }).catch((e) => {
+            console.warn('executePendingRun call warning:', e);
+          });
           router.push(`/dashboard/runs/${runId}`);
           return;
         }

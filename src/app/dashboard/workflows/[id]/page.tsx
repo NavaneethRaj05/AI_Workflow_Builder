@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import { useParams, useRouter } from 'next/navigation';
 import { useOrgStore } from '@/lib/store';
+import nhost from '@/lib/nhost';
 import {
   GET_WORKFLOW_DETAIL,
   UPSERT_WORKFLOW,
@@ -454,6 +455,9 @@ export default function WorkflowEditorPage() {
         const runId = directRes.data?.insert_workflow_runs_one?.id;
         if (runId) {
           toast.success('Workflow run started!');
+          nhost.functions.call('executePendingRun', { run_id: runId }).catch((e) => {
+            console.warn('executePendingRun call warning:', e);
+          });
           router.push(`/dashboard/runs/${runId}`);
           return;
         }

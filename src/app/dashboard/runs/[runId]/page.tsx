@@ -255,9 +255,9 @@ export default function RunMonitorPage() {
   const [hasTriggered, setHasTriggered] = useState(false);
 
   useEffect(() => {
-    if (run && run.status === 'pending' && stepRuns.length === 0 && workflow?.id && !hasTriggered) {
+    if (run && run.status === 'pending' && stepRuns.length === 0 && params.runId && !hasTriggered) {
       setHasTriggered(true);
-      nhost.functions.call('triggerWorkflowRun', { workflow_id: workflow.id }).then((res) => {
+      nhost.functions.call('executePendingRun', { run_id: params.runId }).then((res) => {
         if (res.error) {
           console.warn('Auto-trigger warning:', res.error);
         }
@@ -265,7 +265,7 @@ export default function RunMonitorPage() {
         console.warn('Auto-trigger error:', err);
       });
     }
-  }, [run, stepRuns.length, workflow?.id, hasTriggered]);
+  }, [run, stepRuns.length, params.runId, hasTriggered]);
 
   const statusConf = STATUS_CONFIG[run?.status] || STATUS_CONFIG.pending;
   const isRunning = run?.status === 'running';
