@@ -14,7 +14,7 @@ const nextConfig: NextConfig = {
       // Proxy nhost GraphQL requests
       {
         source: '/nhost/graphql/:path*',
-        destination: `https://${NHOST_SUBDOMAIN}.hasura.${NHOST_REGION}.nhost.run/v1/graphql/:path*`,
+        destination: `https://${NHOST_SUBDOMAIN}.graphql.${NHOST_REGION}.nhost.run/v1/:path*`,
       },
       // Proxy nhost functions
       {

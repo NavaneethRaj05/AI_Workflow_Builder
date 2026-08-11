@@ -17,10 +17,10 @@ function ApolloWrapper({ children }: { children: React.ReactNode }) {
 
     const httpUrl = subdomain === 'local'
       ? 'http://localhost:8080/v1/graphql'
-      : `https://${subdomain}.hasura.${region}.nhost.run/v1/graphql`;
+      : `https://${subdomain}.graphql.${region}.nhost.run/v1`;
     const wsUrl = subdomain === 'local'
       ? 'ws://localhost:8080/v1/graphql'
-      : `wss://${subdomain}.hasura.${region}.nhost.run/v1/graphql`;
+      : `wss://${subdomain}.graphql.${region}.nhost.run/v1`;
 
     const authLink = setContext(async (_, { headers }) => {
       const token = nhost.auth.getAccessToken();
