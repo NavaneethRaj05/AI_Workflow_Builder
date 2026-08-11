@@ -25,15 +25,27 @@ export default async function handler(req: Request, res: Response) {
     const workflow_id = input?.workflow_id || req.body?.workflow_id;
     const session_variables = req.body.session_variables || {};
 
-    // Extract caller's user ID from Hasura session variables, auth header, or req.user
-    let callerId: string = session_variables?.['x-hasura-user-id'] || (req as any).user?.id;
-    let callerRole: string = session_variables?.['x-hasura-role'] || 'user';
+    // Extract caller's user ID from Hasura session variables, headers, auth header, or req.user
+    let callerId: string =
+      session_variables?.['x-hasura-user-id'] ||
+      session_variables?.['X-Hasura-User-Id'] ||
+      (req.headers as any)?.['x-hasura-user-id'] ||
+      (req as any).user?.id;
 
-    const authHeader = (req.headers.authorization || (req.headers as any).Authorization) as string;
+    let callerRole: string =
+      session_variables?.['x-hasura-role'] ||
+      session_variables?.['X-Hasura-Role'] ||
+      (req.headers as any)?.['x-hasura-role'] ||
+      'user';
+
+    const authHeader =
+      (req.headers.authorization as string) ||
+      (req.headers as any)?.Authorization ||
+      (req.headers as any)?.['authorization'];
 
     if (!callerId && authHeader) {
       try {
-        const token = authHeader.replace(/^Bearer\s+/i, '');
+        const token = authHeader.replace(/^Bearer\s+/i, '').trim();
         const payloadBase64 = token.split('.')[1];
         if (payloadBase64) {
           const decoded = JSON.parse(Buffer.from(payloadBase64, 'base64').toString('utf-8'));
