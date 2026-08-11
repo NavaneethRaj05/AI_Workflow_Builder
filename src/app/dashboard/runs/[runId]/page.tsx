@@ -10,6 +10,7 @@ import {
   APPROVE_STEP,
 } from '@/lib/graphql/operations';
 import { useOrgStore } from '@/lib/store';
+import nhost from '@/lib/nhost';
 import { formatDistanceToNow, format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { useState, useEffect } from 'react';
@@ -271,9 +272,13 @@ export default function RunMonitorPage() {
     if (!run || !isStuck || hasTriggered) return;
     setHasTriggered(true);
 
+    const token = nhost.auth.getAccessToken();
     fetch('/api/execute-run', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({ run_id: runId }),
     }).then(async (res) => {
       if (!res.ok) {
