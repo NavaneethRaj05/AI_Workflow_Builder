@@ -7,13 +7,16 @@ import { gql } from 'graphql-request';
 import crypto from 'crypto';
 
 /**
- * Hasura Action: webhookIngest
- *
- * External systems call this endpoint to trigger a workflow run via webhook.
- * The webhook URL looks like: POST /api/webhookIngest
- * With payload: { trigger_id: string, secret: string, data: any }
- */
 export default async function handler(req: Request, res: Response) {
+  // Set CORS headers for browser requests
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-hasura-admin-secret, x-hasura-role, x-hasura-user-id');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
@@ -21,8 +24,6 @@ export default async function handler(req: Request, res: Response) {
   try {
     const { input } = req.body;
     const { trigger_id, secret: providedSecret, data: webhookData } = input || req.body;
-
-    if (!trigger_id) {
       return res.status(400).json({ message: 'trigger_id is required' });
     }
 
