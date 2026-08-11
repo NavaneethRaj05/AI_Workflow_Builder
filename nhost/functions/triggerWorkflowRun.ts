@@ -151,7 +151,8 @@ export default async function handler(req: Request, res: Response) {
       runId,
       workflow.org_id,
       callerId,
-      input?.initial_input || {}
+      input?.initial_input || {},
+      req
     ).catch(error => {
       console.error(`[triggerWorkflowRun] Execution error for run ${runId}:`, error);
     });

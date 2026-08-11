@@ -20,12 +20,27 @@ const adminSecret = getAdminSecret();
 
 export function getAdminClient(req?: any) {
   const secret = getAdminSecret();
-  const headers: Record<string, string> = {
-    'x-hasura-admin-secret': secret,
-  };
+  const headers: Record<string, string> = {};
 
+  // 1. Secret header if valid secret is present
+  if (secret && secret !== '01234567890123456789012345678912' && secret !== 'your-admin-secret') {
+    headers['x-hasura-admin-secret'] = secret;
+  }
+
+  // 2. User authorization header forwarded from Hasura Action
   if (req?.headers?.authorization) {
     headers['Authorization'] = req.headers.authorization;
+  }
+
+  // 3. Hasura session variables fallback
+  if (!headers['x-hasura-admin-secret'] && !headers['Authorization']) {
+    const sessionVars = req?.body?.session_variables || req?.headers || {};
+    const userId = sessionVars['x-hasura-user-id'] || sessionVars['X-Hasura-User-Id'];
+    const role = sessionVars['x-hasura-role'] || sessionVars['X-Hasura-Role'] || 'user';
+    if (userId) {
+      headers['x-hasura-user-id'] = userId;
+      headers['x-hasura-role'] = role;
+    }
   }
 
   return new GraphQLClient(gqlUrl, { headers });

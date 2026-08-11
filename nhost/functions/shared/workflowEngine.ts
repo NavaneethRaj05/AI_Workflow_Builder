@@ -39,9 +39,10 @@ export async function executeWorkflow(
   runId: string,
   orgId: string,
   userId: string | null,
-  inputPayload: any = {}
+  inputPayload: any = {},
+  req?: any
 ) {
-  const adminClient = getAdminClient();
+  const adminClient = getAdminClient(req);
 
   // Fetch workflow with all steps
   const workflowData: any = await adminClient.request(GET_WORKFLOW_WITH_STEPS, {
