@@ -3,27 +3,34 @@ actions:
     definition:
       kind: synchronous
       handler: "{{NHOST_FUNCTIONS_URL}}/triggerWorkflowRun"
+      forward_client_headers: true
       headers:
         - name: x-hasura-action-secret
           value_from_env: NHOST_WEBHOOK_SECRET
+      arguments:
+        - name: workflow_id
+          type: uuid!
+        - name: initial_input
+          type: jsonb
+      output_type: TriggerWorkflowRunOutput
     comment: "Start a workflow run — validates org membership, checks quota, executes steps"
     permissions:
       - role: user
-    request_transform:
-      method: POST
-      content_type: application/json
-      body:
-        action: "{{$body.action}}"
-        input: "{{$body.input}}"
-        session_variables: "{{$session_variables}}"
 
   - name: approveStep
     definition:
       kind: synchronous
       handler: "{{NHOST_FUNCTIONS_URL}}/approveStep"
+      forward_client_headers: true
       headers:
         - name: x-hasura-action-secret
           value_from_env: NHOST_WEBHOOK_SECRET
+      arguments:
+        - name: step_run_id
+          type: uuid!
+        - name: comment
+          type: String
+      output_type: ApproveStepOutput
     comment: "Approve a paused approval_gate step — Layer 2 role check in handler"
     permissions:
       - role: user
@@ -32,9 +39,16 @@ actions:
     definition:
       kind: synchronous
       handler: "{{NHOST_FUNCTIONS_URL}}/webhookIngest"
+      forward_client_headers: true
       headers:
         - name: x-hasura-action-secret
           value_from_env: NHOST_WEBHOOK_SECRET
+      arguments:
+        - name: trigger_id
+          type: uuid!
+        - name: payload
+          type: jsonb
+      output_type: WebhookIngestOutput
     comment: "Inbound webhook endpoint that external systems call to trigger a workflow run"
     permissions:
       - role: public
