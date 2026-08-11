@@ -3,7 +3,7 @@
 
   [[hasura.jwtSecrets]]
     type = "HS256"
-    key = "{{ secrets.MY_JWT_SECRET }}"
+    key = "01234567890123456789012345678912"
 
   [hasura.settings]
     corsDomain = ["*"]
@@ -24,13 +24,9 @@
     version = 22
 
 [auth]
-
   [auth.redirections]
     clientUrl = "https://ai-workflow-builder-sable.vercel.app"
     allowedUrls = ["http://localhost:3000", "https://ai-workflow-builder-sable.vercel.app"]
-
-  [auth.signUp]
-    enabled = true
 
   [auth.method.emailPassword]
     emailVerificationRequired = false
