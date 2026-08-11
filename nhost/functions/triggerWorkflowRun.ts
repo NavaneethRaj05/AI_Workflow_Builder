@@ -25,9 +25,24 @@ export default async function handler(req: Request, res: Response) {
     const workflow_id = input?.workflow_id || req.body?.workflow_id;
     const session_variables = req.body.session_variables || {};
 
-    // Extract caller's user ID from Hasura session variables or auth header
-    const callerId: string = session_variables?.['x-hasura-user-id'] || (req as any).user?.id;
-    const callerRole: string = session_variables?.['x-hasura-role'] || 'user';
+    // Extract caller's user ID from Hasura session variables, auth header, or req.user
+    let callerId: string = session_variables?.['x-hasura-user-id'] || (req as any).user?.id;
+    let callerRole: string = session_variables?.['x-hasura-role'] || 'user';
+
+    if (!callerId && req.headers.authorization) {
+      try {
+        const token = req.headers.authorization.replace('Bearer ', '');
+        const payloadBase64 = token.split('.')[1];
+        if (payloadBase64) {
+          const decoded = JSON.parse(Buffer.from(payloadBase64, 'base64').toString('utf-8'));
+          const hasuraClaims = decoded['https://hasura.io/jwt/claims'];
+          callerId = hasuraClaims?.['x-hasura-user-id'] || decoded.sub;
+          callerRole = hasuraClaims?.['x-hasura-default-role'] || 'user';
+        }
+      } catch (e) {
+        console.warn('Failed to parse JWT in function:', e);
+      }
+    }
 
     if (!callerId) {
       return res.status(401).json({ message: 'Unauthorized: No user ID in session' });

@@ -12,7 +12,8 @@ import {
 import { useOrgStore } from '@/lib/store';
 import { formatDistanceToNow, format } from 'date-fns';
 import toast from 'react-hot-toast';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import nhost from '@/lib/nhost';
 
 const STEP_TYPE_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
   llm_call: { label: 'LLM Call', color: '#8b5cf6', icon: '🤖' },
@@ -251,6 +252,20 @@ export default function RunMonitorPage() {
   const run = liveRun?.workflow_runs_by_pk || runData?.workflow_runs_by_pk;
   const stepRuns = liveSteps?.step_runs || [];
   const workflow = runData?.workflow_runs_by_pk?.workflow;
+  const [hasTriggered, setHasTriggered] = useState(false);
+
+  useEffect(() => {
+    if (run && run.status === 'pending' && stepRuns.length === 0 && workflow?.id && !hasTriggered) {
+      setHasTriggered(true);
+      nhost.functions.call('triggerWorkflowRun', { workflow_id: workflow.id }).then((res) => {
+        if (res.error) {
+          console.warn('Auto-trigger warning:', res.error);
+        }
+      }).catch((err) => {
+        console.warn('Auto-trigger error:', err);
+      });
+    }
+  }, [run, stepRuns.length, workflow?.id, hasTriggered]);
 
   const statusConf = STATUS_CONFIG[run?.status] || STATUS_CONFIG.pending;
   const isRunning = run?.status === 'running';
