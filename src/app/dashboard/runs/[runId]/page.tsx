@@ -257,6 +257,13 @@ export default function RunMonitorPage() {
   useEffect(() => {
     // Recovery: if the run is still pending (or stuck running with no steps),
     // call the server-side API route which uses admin secret — no user token needed.
+
+    // Guard: params.runId must be a valid non-empty string (not undefined or the template literal)
+    const runId = typeof params.runId === 'string' && params.runId && params.runId !== '[runId]'
+      ? params.runId
+      : null;
+    if (!runId) return;
+
     const isStuck =
       run?.status === 'pending' ||
       (run?.status === 'running' && stepRuns.length === 0);
@@ -267,7 +274,7 @@ export default function RunMonitorPage() {
     fetch('/api/execute-run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ run_id: params.runId }),
+      body: JSON.stringify({ run_id: runId }),
     }).then(async (res) => {
       if (!res.ok) {
         let errBody: any = {};

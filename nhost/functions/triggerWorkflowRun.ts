@@ -30,12 +30,20 @@ export default async function handler(req: Request, res: Response) {
   }
 
   try {
-    const input = req.body.input || req.body;
-    const workflow_id = input?.workflow_id || req.body?.workflow_id;
-    const session_variables = req.body.session_variables || {};
+    // Hasura Action body shape: { action: {...}, input: { workflow_id, initial_input }, session_variables: {...} }
+    // Direct call shape:        { workflow_id, initial_input }
+    const input = req.body?.input ?? req.body;
+    const workflow_id =
+      input?.workflow_id ||
+      req.body?.workflow_id ||
+      req.body?.input?.workflow_id;
+    const session_variables = req.body?.session_variables || {};
 
-    console.log('[triggerWorkflowRun] Incoming headers:', JSON.stringify(req.headers));
-    console.log('[triggerWorkflowRun] Incoming body keys:', Object.keys(req.body || {}));
+    console.log('[triggerWorkflowRun] Incoming body:', JSON.stringify({
+      keys: Object.keys(req.body || {}),
+      hasInput: !!req.body?.input,
+      workflow_id_found: !!workflow_id,
+    }));
 
     // Extract caller's user ID from Hasura session variables, headers, auth header, or req.user
     let callerId: string =
