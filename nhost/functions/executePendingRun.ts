@@ -25,7 +25,10 @@ export default async function handler(req: Request, res: Response) {
   }
 
   try {
-    console.log('[executePendingRun] Env keys:', Object.keys(process.env).filter(k => !k.includes('PASS') && !k.includes('KEY')));
+    const adminSecret = process.env.HASURA_GRAPHQL_ADMIN_SECRET || process.env.NHOST_ADMIN_SECRET;
+    console.log('[executePendingRun] Has admin secret:', !!adminSecret);
+    console.log('[executePendingRun] Env keys:', Object.keys(process.env).filter(k => !k.includes('PASS') && !k.includes('SECRET') && !k.includes('KEY')));
+
     const input = req.body.input || req.body;
     const run_id = input?.run_id || req.body?.run_id;
     const session_variables = req.body.session_variables || {};
@@ -57,6 +60,16 @@ export default async function handler(req: Request, res: Response) {
 
     if (!run_id) {
       return res.status(400).json({ message: 'run_id is required' });
+    }
+
+    // If neither admin secret nor user auth is available, we cannot make any DB calls.
+    // Return a clear error immediately instead of a confusing 500.
+    if (!adminSecret && !authHeader) {
+      console.error('[executePendingRun] No credentials available — set NHOST_ADMIN_SECRET in your Nhost project environment variables.');
+      return res.status(500).json({
+        message: 'Server misconfiguration: NHOST_ADMIN_SECRET is not set. Please configure it in your Nhost project settings.',
+        code: 'MISSING_ADMIN_SECRET',
+      });
     }
 
     const client = getAdminClient(req);
@@ -105,15 +118,53 @@ export default async function handler(req: Request, res: Response) {
       callerId || null,
       run.input || {},
       req
-    ).catch(err => {
+    ).catch(async (err) => {
       console.error(`[executePendingRun] Error executing run ${run.id}:`, err);
+      // Attempt to mark run as failed so it doesn't stay stuck as pending
+      try {
+        const { UPDATE_WORKFLOW_RUN } = await import('./shared/graphqlClient');
+        const { gql: gqlTag } = await import('graphql-request');
+        await client.request(UPDATE_WORKFLOW_RUN, {
+          id: run.id,
+          set: {
+            status: 'failed',
+            completed_at: new Date().toISOString(),
+            output: { error: err.message || 'Execution failed' },
+          },
+        });
+      } catch (updateErr) {
+        console.error(`[executePendingRun] Failed to mark run ${run.id} as failed:`, updateErr);
+      }
     });
 
   } catch (error: any) {
     console.error('[executePendingRun] Error:', error);
+
+    // Try to mark the run as failed if we have a run_id and a client
+    const run_id = req.body?.input?.run_id || req.body?.run_id;
+    if (run_id) {
+      try {
+        const failClient = getAdminClient(req);
+        const { UPDATE_WORKFLOW_RUN } = await import('./shared/graphqlClient');
+        await failClient.request(UPDATE_WORKFLOW_RUN, {
+          id: run_id,
+          set: {
+            status: 'failed',
+            completed_at: new Date().toISOString(),
+            output: { error: error.message || 'Execution failed before starting' },
+          },
+        });
+      } catch {
+        // Swallow — we already can't reach the DB
+      }
+    }
+
     return res.status(500).json({
       message: error.message || 'Internal server error',
-      details: error?.response?.errors || error?.response || error?.message
+      details: error?.response?.errors || error?.response || error?.message,
+      hint: error.message?.includes('MISSING_ADMIN_SECRET') || (!process.env.HASURA_GRAPHQL_ADMIN_SECRET && !process.env.NHOST_ADMIN_SECRET)
+        ? 'Set NHOST_ADMIN_SECRET in your Nhost project environment variables (Dashboard → Settings → Secrets)'
+        : undefined,
     });
   }
 }

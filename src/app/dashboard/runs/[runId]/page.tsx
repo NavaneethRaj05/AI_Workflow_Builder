@@ -253,6 +253,7 @@ export default function RunMonitorPage() {
   const stepRuns = liveSteps?.step_runs || [];
   const workflow = runData?.workflow_runs_by_pk?.workflow;
   const [hasTriggered, setHasTriggered] = useState(false);
+  const [triggerError, setTriggerError] = useState<string | null>(null);
 
   useEffect(() => {
     // If the run is still pending and has no step_runs yet, fire the
@@ -270,6 +271,17 @@ export default function RunMonitorPage() {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({ run_id: params.runId }),
+    }).then(async (res) => {
+      if (!res.ok) {
+        let errBody: any = {};
+        try { errBody = await res.json(); } catch { /* ignore */ }
+        const hint = errBody?.hint || errBody?.code === 'MISSING_ADMIN_SECRET'
+          ? 'NHOST_ADMIN_SECRET is not set in your Nhost project. Go to Nhost Dashboard → Settings → Secrets and add it.'
+          : errBody?.message || `Execution failed (${res.status})`;
+        toast.error(hint, { duration: 8000 });
+        setTriggerError(hint);
+        console.error('[RunMonitor] executePendingRun error:', errBody);
+      }
     }).catch((e) => {
       console.warn('[RunMonitor] executePendingRun retry warning:', e);
     });
@@ -398,8 +410,18 @@ export default function RunMonitorPage() {
 
         {stepRuns.length === 0 ? (
           <div className="card text-center py-8">
-            <div className="step-running-indicator mx-auto mb-3" />
-            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Initializing steps...</p>
+            {triggerError ? (
+              <>
+                <div className="text-2xl mb-2">❌</div>
+                <p className="text-sm font-medium mb-1" style={{ color: '#f87171' }}>Execution Failed</p>
+                <p className="text-xs" style={{ color: 'var(--text-muted)', maxWidth: '28rem', margin: '0 auto' }}>{triggerError}</p>
+              </>
+            ) : (
+              <>
+                <div className="step-running-indicator mx-auto mb-3" />
+                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Initializing steps...</p>
+              </>
+            )}
           </div>
         ) : (
           <div className="timeline">

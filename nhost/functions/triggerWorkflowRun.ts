@@ -78,6 +78,15 @@ export default async function handler(req: Request, res: Response) {
       return res.status(400).json({ message: 'Bad request: workflow_id is required' });
     }
 
+    const adminSecret = process.env.HASURA_GRAPHQL_ADMIN_SECRET || process.env.NHOST_ADMIN_SECRET;
+    if (!adminSecret && !authHeader) {
+      console.error('[triggerWorkflowRun] No credentials available — NHOST_ADMIN_SECRET is not set.');
+      return res.status(500).json({
+        message: 'Server misconfiguration: NHOST_ADMIN_SECRET is not set. Configure it in Nhost Dashboard → Settings → Secrets.',
+        code: 'MISSING_ADMIN_SECRET',
+      });
+    }
+
     const client = getAdminClient(req);
 
     // Fetch workflow to get org_id

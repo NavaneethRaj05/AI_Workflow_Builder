@@ -464,6 +464,16 @@ export default function WorkflowEditorPage() {
               ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
             body: JSON.stringify({ run_id: runId }),
+          }).then(async (res) => {
+            if (!res.ok) {
+              let errBody: any = {};
+              try { errBody = await res.json(); } catch { /* ignore */ }
+              if (errBody?.code === 'MISSING_ADMIN_SECRET') {
+                toast.error('Server config error: NHOST_ADMIN_SECRET not set in Nhost project. See Nhost Dashboard → Settings → Secrets.', { duration: 8000 });
+              } else {
+                console.warn('executePendingRun returned error:', errBody);
+              }
+            }
           }).catch((e) => {
             console.warn('executePendingRun fetch warning:', e);
           });
