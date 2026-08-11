@@ -1,3 +1,15 @@
+[[global.environment]]
+  name = "GROQ_API_KEY"
+  value = "{{ secrets.GROQ_API_KEY }}"
+
+[[global.environment]]
+  name = "NHOST_ADMIN_SECRET"
+  value = "{{ secrets.HASURA_GRAPHQL_ADMIN_SECRET }}"
+
+[[global.environment]]
+  name = "NHOST_WEBHOOK_SECRET"
+  value = "{{ secrets.NHOST_WEBHOOK_SECRET }}"
+
 [hasura]
   version = "v2.49.2-ce"
 
@@ -22,18 +34,6 @@
 [functions]
   [functions.node]
     version = 22
-
-  [[functions.environment]]
-    name = "GROQ_API_KEY"
-    value = "{{ secrets.GROQ_API_KEY }}"
-
-  [[functions.environment]]
-    name = "NHOST_ADMIN_SECRET"
-    value = "{{ secrets.HASURA_GRAPHQL_ADMIN_SECRET }}"
-
-  [[functions.environment]]
-    name = "NHOST_WEBHOOK_SECRET"
-    value = "{{ secrets.NHOST_WEBHOOK_SECRET }}"
 
 [auth]
 
