@@ -81,7 +81,6 @@ export async function executeWorkflow(
       id: stepRunId,
       set: {
         status: 'running',
-        started_at: new Date().toISOString(),
         attempt_count: 1,
       },
     });
