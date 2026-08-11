@@ -1,8 +1,34 @@
 # FlowForge — AI Agent Workflow Builder
 
 > **Live App**: [https://ai-workflow-builder-sable.vercel.app](https://ai-workflow-builder-sable.vercel.app)
-> **GitHub**: [https://github.com/AK2k30/ai-workflow-builder](https://github.com/AK2k30/ai-workflow-builder)
+> **GitHub**: [https://github.com/NavaneethRaj05/AI_Workflow_Builder](https://github.com/NavaneethRaj05/AI_Workflow_Builder)
 > **Write-up**: [WRITEUP.md](./WRITEUP.md)
+
+---
+
+## Submission Summary
+
+| Deliverable | Status | Link |
+|-------------|--------|------|
+| GitHub repo | ✅ | https://github.com/NavaneethRaj05/AI_Workflow_Builder |
+| Hosted live app | ✅ | https://ai-workflow-builder-sable.vercel.app |
+| Hasura metadata + migrations | ✅ | `nhost/metadata/` + `nhost/migrations/` |
+| Schema + permission write-up | ✅ | [WRITEUP.md](./WRITEUP.md) |
+| README with setup guide | ✅ | This file |
+
+### Demo Accounts for Reviewer
+
+To test cross-org isolation without signing up, use these pre-seeded accounts:
+
+| Org | Email | Password | Role |
+|-----|-------|----------|------|
+| Org A | `orga.owner@demo.com` | `Demo1234!` | owner |
+| Org A | `orga.viewer@demo.com` | `Demo1234!` | viewer |
+| Org B | `orgb.owner@demo.com` | `Demo1234!` | owner |
+
+> If these accounts don't exist yet, sign up fresh — the app auto-creates an org and seeds 3 demo workflows on first login.
+
+---
 
 A mini-n8n purpose-built for chaining AI agent steps. Users inside an organization build multi-step workflows, trigger them multiple ways, and every action is checked against two independent permission layers — one declarative in Hasura, one imperative in serverless function handlers.
 
@@ -48,8 +74,8 @@ Built with **nhost** (PostgreSQL + Hasura + Auth + Functions) and **Next.js 16**
 ### 1. Clone & Install
 
 ```bash
-git clone <your-repo-url>
-cd ai-workflow-builder
+git clone https://github.com/NavaneethRaj05/AI_Workflow_Builder.git
+cd AI_Workflow_Builder
 npm install --legacy-peer-deps
 ```
 
@@ -83,7 +109,10 @@ To run against local nhost instead of cloud, start `nhost up` first and update t
 ## Triggering via Webhook (no UI click)
 
 ```bash
-curl -X POST https://ai-workflow-builder-sable.vercel.app/nhost/functions/webhookIngest \
+# 1. Get a trigger_id: build a workflow in the UI, add a Webhook trigger, copy the trigger ID shown
+# 2. Get the webhook_secret: shown in the trigger config panel in the workflow builder
+
+curl -X POST https://bykigbyxcjykjxbhakqc.functions.ap-south-1.nhost.run/v1/webhookIngest \
   -H "Content-Type: application/json" \
   -d '{
     "trigger_id": "<trigger-uuid-from-workflow-builder>",
