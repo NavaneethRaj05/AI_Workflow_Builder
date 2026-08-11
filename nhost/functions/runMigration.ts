@@ -2,12 +2,11 @@ import type { Request, Response } from 'express';
 
 /**
  * One-shot migration runner — called once to apply pending migrations.
- * Protected by NHOST_WEBHOOK_SECRET so it can't be called by anyone else.
- * DELETE THIS FILE after running.
+ * Protected by a hardcoded token. DELETE THIS FILE after running.
  */
 export default async function handler(req: Request, res: Response) {
   const secret = req.headers['x-migration-secret'];
-  if (secret !== process.env.NHOST_WEBHOOK_SECRET) {
+  if (secret !== 'run-migration-now-2024') {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
