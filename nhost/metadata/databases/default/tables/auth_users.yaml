@@ -7,6 +7,16 @@ configuration:
     select: users
     select_by_pk: user
     select_aggregate: usersAggregate
+  custom_column_names:
+    avatar_url: avatarUrl
+    created_at: createdAt
+    default_role: defaultRole
+    display_name: displayName
+    email: email
+    id: id
+    last_seen: lastSeen
+    locale: locale
+    updated_at: updatedAt
 select_permissions:
   - role: user
     permission:
