@@ -1,35 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-/**
- * Server-side proxy that calls executePendingRun using the admin secret.
- * This bypasses the need for a valid user JWT token.
- */
+const SUBDOMAIN = process.env.NEXT_PUBLIC_NHOST_SUBDOMAIN || 'bykigbyxcjykjxbhakqc';
+const REGION = process.env.NEXT_PUBLIC_NHOST_REGION || 'ap-south-1';
+const FUNCTIONS_URL = `https://${SUBDOMAIN}.functions.${REGION}.nhost.run/v1`;
+
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const { run_id } = body;
-
-  if (!run_id) {
-    return NextResponse.json({ message: 'run_id is required' }, { status: 400 });
-  }
-
-  const functionsUrl = `https://${process.env.NEXT_PUBLIC_NHOST_SUBDOMAIN}.functions.${process.env.NEXT_PUBLIC_NHOST_REGION || 'ap-south-1'}.nhost.run/v1`;
-
   try {
-    const res = await fetch(`${functionsUrl}/executePendingRun`, {
+    const { run_id } = await req.json();
+    if (!run_id) {
+      return NextResponse.json({ error: 'run_id is required' }, { status: 400 });
+    }
+
+    // Call executePendingRun from server side — no user token needed
+    const res = await fetch(`${FUNCTIONS_URL}/executePendingRun`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        // Forward auth header if present
-        ...(req.headers.get('authorization')
-          ? { Authorization: req.headers.get('authorization')! }
-          : {}),
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ run_id }),
     });
 
-    const data = await res.json();
+    const data = await res.json() as Record<string, unknown>;
     return NextResponse.json(data, { status: res.ok ? 200 : res.status });
-  } catch (e: any) {
-    return NextResponse.json({ message: e.message }, { status: 500 });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Unknown error';
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

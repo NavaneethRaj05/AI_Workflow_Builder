@@ -7,7 +7,6 @@ import { useOrgStore } from '@/lib/store';
 import {
   GET_ORG_WORKFLOWS,
   TRIGGER_WORKFLOW_RUN,
-  CREATE_WORKFLOW_RUN_DIRECT,
   DELETE_WORKFLOW,
   DELETE_WORKFLOW_RUNS_BY_WORKFLOW,
 } from '@/lib/graphql/operations';
@@ -15,7 +14,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
-import nhost from '@/lib/nhost';
 
 const STEP_TYPE_ICONS: Record<string, string> = {
   llm_call: '🤖',
@@ -49,14 +47,19 @@ export default function WorkflowsPage() {
   });
 
   const [triggerRun] = useMutation(TRIGGER_WORKFLOW_RUN);
-  const [createRunDirect] = useMutation(CREATE_WORKFLOW_RUN_DIRECT);
 
   const handleRunWorkflow = async (workflowId: string) => {
-    let runId: string | null = null;
+    // Find the org_id for this workflow
+    const workflow = data?.workflows?.find((w: any) => w.id === workflowId);
+    if (!workflow) {
+      toast.error('Workflow not found');
+      return;
+    }
 
+    // Try primary path: Hasura Action (works when auth token is valid)
     try {
       const res = await triggerRun({ variables: { workflow_id: workflowId } });
-      runId = res.data?.triggerWorkflowRun?.run_id || null;
+      const runId = res.data?.triggerWorkflowRun?.run_id;
       if (runId) {
         toast.success('Workflow started!');
         router.push(`/dashboard/runs/${runId}`);
@@ -64,53 +67,33 @@ export default function WorkflowsPage() {
       }
     } catch (err: any) {
       const msg: string = err?.graphQLErrors?.[0]?.message || err?.message || '';
-      if (msg.includes('Quota exhausted') || msg.includes('Forbidden') || msg.includes('Unauthorized')) {
+      // Surface quota/permission errors directly — don't fall through
+      if (msg.includes('Quota exhausted') || msg.includes('Forbidden')) {
         toast.error(msg, { duration: 6000 });
         return;
       }
-      console.warn('[Run] Hasura Action failed, trying direct fallback:', msg);
+      // Other errors (auth/network) — fall through to server-side route
+      console.warn('[Run] Hasura Action failed, using server-side fallback:', msg);
     }
 
-    if (!selectedOrgId) {
-      toast.error('No organization selected');
-      return;
-    }
-
+    // Fallback: server-side API route (uses admin secret, no user token needed)
     try {
-      const directRes = await createRunDirect({
-        variables: { workflow_id: workflowId, org_id: selectedOrgId },
+      toast.loading('Starting workflow...', { id: 'run-toast' });
+      const r = await fetch('/api/run-workflow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workflow_id: workflowId, org_id: selectedOrgId }),
       });
-      runId = directRes.data?.insert_workflow_runs_one?.id || null;
-    } catch (fallbackErr: any) {
-      toast.error(fallbackErr?.message || 'Failed to create workflow run');
-      return;
-    }
-
-    if (!runId) {
-      toast.error('Failed to start workflow run');
-      return;
-    }
-
-    router.push(`/dashboard/runs/${runId}`);
-
-    const token = nhost.auth.getAccessToken();
-    fetch('/nhost/functions/executePendingRun', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ run_id: runId }),
-    }).then(async (r) => {
+      const body = await r.json();
       if (!r.ok) {
-        let body: any = {};
-        try { body = await r.json(); } catch { /* ignore */ }
-        const hint = body?.code === 'MISSING_ADMIN_SECRET'
-          ? 'NHOST_ADMIN_SECRET is not set. Go to Nhost Dashboard → Settings → Secrets.'
-          : body?.message || `Execution failed (${r.status})`;
-        toast.error(hint, { duration: 8000 });
+        toast.error(body.error || 'Failed to start workflow', { id: 'run-toast' });
+        return;
       }
-    }).catch(() => { /* run detail page handles recovery */ });
+      toast.success('Workflow started!', { id: 'run-toast' });
+      router.push(`/dashboard/runs/${body.run_id}`);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to start workflow', { id: 'run-toast' });
+    }
   };
 
   const [deleteWorkflowRuns] = useMutation(DELETE_WORKFLOW_RUNS_BY_WORKFLOW);

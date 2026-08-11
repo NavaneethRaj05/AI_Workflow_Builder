@@ -13,7 +13,6 @@ import { useOrgStore } from '@/lib/store';
 import { formatDistanceToNow, format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { useState, useEffect } from 'react';
-import nhost from '@/lib/nhost';
 
 const STEP_TYPE_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
   llm_call: { label: 'LLM Call', color: '#8b5cf6', icon: '🤖' },
@@ -256,9 +255,8 @@ export default function RunMonitorPage() {
   const [triggerError, setTriggerError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Recovery: if the run is still pending (or stuck running with no steps), fire
-    // executePendingRun. This is the safety net for any case where execution
-    // never started or was killed before updating the status.
+    // Recovery: if the run is still pending (or stuck running with no steps),
+    // call the server-side API route which uses admin secret — no user token needed.
     const isStuck =
       run?.status === 'pending' ||
       (run?.status === 'running' && stepRuns.length === 0);
@@ -266,27 +264,20 @@ export default function RunMonitorPage() {
     if (!run || !isStuck || hasTriggered) return;
     setHasTriggered(true);
 
-    const token = nhost.auth.getAccessToken();
-    fetch('/nhost/functions/executePendingRun', {
+    fetch('/api/execute-run', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ run_id: params.runId }),
     }).then(async (res) => {
       if (!res.ok) {
         let errBody: any = {};
         try { errBody = await res.json(); } catch { /* ignore */ }
-        const hint = errBody?.code === 'MISSING_ADMIN_SECRET'
-          ? 'NHOST_ADMIN_SECRET is not set in your Nhost project. Go to Nhost Dashboard → Settings → Secrets and add it.'
-          : errBody?.message || `Execution failed (${res.status})`;
+        const hint = errBody?.error || errBody?.message || `Execution failed (${res.status})`;
         toast.error(hint, { duration: 8000 });
         setTriggerError(hint);
-        console.error('[RunMonitor] executePendingRun error:', errBody);
       }
     }).catch((e) => {
-      console.warn('[RunMonitor] executePendingRun retry warning:', e);
+      console.warn('[RunMonitor] recovery warning:', e);
     });
   }, [run?.status, stepRuns.length, hasTriggered, params.runId]);
 
