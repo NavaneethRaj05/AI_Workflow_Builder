@@ -2,10 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { GraphQLClient, gql } from 'graphql-request';
 
-const gqlUrl = process.env.NHOST_GRAPHQL_URL ||
-  (process.env.NHOST_SUBDOMAIN
-    ? `https://${process.env.NHOST_SUBDOMAIN}.graphql.${process.env.NHOST_REGION || 'ap-south-1'}.nhost.run/v1`
-    : 'https://bykigbyxcjykjxbhakqc.graphql.ap-south-1.nhost.run/v1');
+const gqlUrl = 'https://bykigbyxcjykjxbhakqc.graphql.ap-south-1.nhost.run/v1';
 
 const getAdminSecret = (): string | null => {
   const secret = process.env.HASURA_GRAPHQL_ADMIN_SECRET || process.env.NHOST_ADMIN_SECRET;
