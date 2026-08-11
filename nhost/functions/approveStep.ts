@@ -109,7 +109,7 @@ export default async function handler(req: Request, res: Response) {
 
     // =========================================================
     // UPDATE STEP RUN: Mark as approved
-    // FIX: status must be a quoted string in the GQL variable set
+    // FIX: status must be an unquoted enum value in Hasura GQL
     // =========================================================
     const now = new Date().toISOString();
     await adminClient.request(gql`
@@ -117,7 +117,7 @@ export default async function handler(req: Request, res: Response) {
         update_step_runs_by_pk(
           pk_columns: {id: $id}
           _set: {
-            status: "succeeded"
+            status: succeeded
             approved_by: $approver_id
             approved_at: $now
             approval_comment: $comment
@@ -147,7 +147,8 @@ export default async function handler(req: Request, res: Response) {
       message: 'Step approved. Resuming workflow execution...',
     });
 
-    // Continue execution asynchronously
+    // Continue execution asynchronously — passes workflowId so the engine
+    // fetches ALL workflow steps (not just already-run step_runs)
     continueWorkflowFromStep(
       runId,
       workflowId,
