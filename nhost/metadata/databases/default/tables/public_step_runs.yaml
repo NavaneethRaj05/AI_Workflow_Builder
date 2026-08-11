@@ -22,3 +22,42 @@ select_permissions:
           organization:
             org_members:
               user_id: { _eq: X-Hasura-User-Id }
+
+insert_permissions:
+  - role: user
+    permission:
+      columns:
+        - workflow_run_id
+        - workflow_step_id
+        - status
+        - input
+        - output
+        - error
+        - attempt_count
+      check:
+        workflow_run:
+          organization:
+            org_members:
+              _and:
+                - user_id: { _eq: X-Hasura-User-Id }
+                - role: { _in: [owner, editor] }
+
+update_permissions:
+  - role: user
+    permission:
+      columns:
+        - status
+        - output
+        - error
+        - attempt_count
+        - completed_at
+        - approved_by
+        - approved_at
+        - approval_comment
+      filter:
+        workflow_run:
+          organization:
+            org_members:
+              user_id: { _eq: X-Hasura-User-Id }
+      check: {}
+

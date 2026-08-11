@@ -12,8 +12,8 @@ import { useMemo } from 'react';
 
 function ApolloWrapper({ children }: { children: React.ReactNode }) {
   const client = useMemo(() => {
-    const subdomain = process.env.NEXT_PUBLIC_NHOST_SUBDOMAIN || 'local';
-    const region = process.env.NEXT_PUBLIC_NHOST_REGION || 'eu-central-1';
+    const subdomain = process.env.NEXT_PUBLIC_NHOST_SUBDOMAIN || 'bykigbyxcjykjxbhakqc';
+    const region = process.env.NEXT_PUBLIC_NHOST_REGION || 'ap-south-1';
 
     const httpUrl = subdomain === 'local'
       ? 'http://localhost:8080/v1/graphql'

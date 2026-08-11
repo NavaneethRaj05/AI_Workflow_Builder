@@ -45,3 +45,40 @@ select_permissions:
         organization:
           org_members:
             user_id: { _eq: X-Hasura-User-Id }
+
+insert_permissions:
+  - role: user
+    permission:
+      columns:
+        - workflow_id
+        - org_id
+        - triggered_by
+        - trigger_type
+        - status
+        - input
+        - output
+        - error
+      check:
+        organization:
+          org_members:
+            _and:
+              - user_id: { _eq: X-Hasura-User-Id }
+              - role: { _in: [owner, editor] }
+      set:
+        triggered_by: X-Hasura-User-Id
+
+update_permissions:
+  - role: user
+    permission:
+      columns:
+        - status
+        - output
+        - error
+        - completed_at
+        - paused_at_step_id
+      filter:
+        organization:
+          org_members:
+            user_id: { _eq: X-Hasura-User-Id }
+      check: {}
+

@@ -3,12 +3,20 @@
 import { GraphQLClient, gql } from 'graphql-request';
 
 const gqlUrl = process.env.NHOST_GRAPHQL_URL ||
-  (process.env.NHOST_BACKEND_URL ? `${process.env.NHOST_BACKEND_URL.replace(/\/$/, '')}/v1/graphql` : null) ||
   (process.env.NHOST_SUBDOMAIN
     ? `https://${process.env.NHOST_SUBDOMAIN}.graphql.${process.env.NHOST_REGION || 'ap-south-1'}.nhost.run/v1`
     : 'https://bykigbyxcjykjxbhakqc.graphql.ap-south-1.nhost.run/v1');
 
-const adminSecret = process.env.NHOST_ADMIN_SECRET || process.env.HASURA_GRAPHQL_ADMIN_SECRET || '01234567890123456789012345678912';
+const getAdminSecret = () => {
+  const secrets = [
+    process.env.HASURA_GRAPHQL_ADMIN_SECRET,
+    process.env.NHOST_ADMIN_SECRET,
+  ].filter(s => s && s !== 'your-admin-secret' && s !== '01234567890123456789012345678912');
+
+  return secrets[0] || process.env.HASURA_GRAPHQL_ADMIN_SECRET || '01234567890123456789012345678912';
+};
+
+const adminSecret = getAdminSecret();
 
 // Admin GraphQL client (bypasses row-level security)
 export const adminClient = new GraphQLClient(gqlUrl, {
