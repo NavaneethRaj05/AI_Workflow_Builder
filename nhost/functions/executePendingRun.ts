@@ -54,7 +54,7 @@ export default async function handler(req: Request, res: Response) {
     // Fetch run details
     const runData: any = await client.request(gql`
       query GetRunForExec($id: uuid!) {
-        workflow_runs_by_pk(id: $id) {
+        workflow_runs(where: { id: { _eq: $id } }) {
           id
           workflow_id
           org_id
@@ -64,7 +64,7 @@ export default async function handler(req: Request, res: Response) {
       }
     `, { id: run_id });
 
-    const run = runData?.workflow_runs_by_pk;
+    const run = runData?.workflow_runs?.[0];
     if (!run) {
       return res.status(404).json({ message: 'Workflow run not found' });
     }

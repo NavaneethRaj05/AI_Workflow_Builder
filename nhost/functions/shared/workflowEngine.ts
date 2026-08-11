@@ -49,7 +49,7 @@ export async function executeWorkflow(
     workflow_id: workflowId,
   });
 
-  const workflow = workflowData?.workflows_by_pk;
+  const workflow = workflowData?.workflows?.[0] || workflowData?.workflows_by_pk;
   if (!workflow) throw new Error('Workflow not found');
 
   const steps: WorkflowStep[] = workflow.workflow_steps.filter((s: WorkflowStep) => s.is_enabled);

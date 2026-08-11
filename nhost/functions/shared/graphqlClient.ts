@@ -77,7 +77,7 @@ export const GET_USER_ORG_ROLE = gql`
 
 export const GET_WORKFLOW_WITH_STEPS = gql`
   query GetWorkflowWithSteps($workflow_id: uuid!) {
-    workflows_by_pk(id: $workflow_id) {
+    workflows(where: { id: { _eq: $workflow_id } }) {
       id
       org_id
       name
