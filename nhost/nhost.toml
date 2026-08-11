@@ -39,6 +39,7 @@
     enabled = true
 
   [auth.method.emailPassword]
+    enabled = true
     emailVerificationRequired = false
 
   [auth.session]
