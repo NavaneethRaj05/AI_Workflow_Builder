@@ -58,24 +58,27 @@ export default function WorkflowsPage() {
         return;
       }
     } catch (err: any) {
-      console.warn('Action failed, falling back to direct creation:', err?.message);
-      if (selectedOrgId) {
-        try {
-          const directRes = await createRunDirect({
-            variables: { workflow_id: workflowId, org_id: selectedOrgId },
-          });
-          const runId = directRes.data?.insert_workflow_runs_one?.id;
-          if (runId) {
-            toast.success('Workflow run started!');
-            router.push(`/dashboard/runs/${runId}`);
-            return;
-          }
-        } catch (fallbackErr: any) {
-          console.error('Fallback run creation failed:', fallbackErr);
-        }
-      }
-      toast.error(err?.message || 'Failed to start workflow');
+      console.warn('Hasura Action failed, attempting direct run creation:', err?.message);
     }
+
+    if (selectedOrgId) {
+      try {
+        const directRes = await createRunDirect({
+          variables: { workflow_id: workflowId, org_id: selectedOrgId },
+        });
+        const runId = directRes.data?.insert_workflow_runs_one?.id;
+        if (runId) {
+          toast.success('Workflow run started!');
+          router.push(`/dashboard/runs/${runId}`);
+          return;
+        }
+      } catch (fallbackErr: any) {
+        console.error('Direct run creation failed:', fallbackErr);
+        toast.error(fallbackErr?.message || 'Failed to start workflow');
+        return;
+      }
+    }
+    toast.error('Failed to start workflow');
   };
 
   const [triggerRun] = useMutation(TRIGGER_WORKFLOW_RUN);

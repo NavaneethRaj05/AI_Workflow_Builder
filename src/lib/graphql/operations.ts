@@ -298,8 +298,8 @@ export const CREATE_WORKFLOW_RUN_DIRECT = gql`
     insert_workflow_runs_one(object: {
       workflow_id: $workflow_id
       org_id: $org_id
-      status: "pending"
-      trigger_type: "manual"
+      status: pending
+      trigger_type: manual
     }) {
       id
       status
