@@ -13,7 +13,9 @@ configuration:
     default_role: defaultRole
     display_name: displayName
     email: email
+    email_verified: emailVerified
     id: id
+    is_anonymous: isAnonymous
     last_seen: lastSeen
     locale: locale
     updated_at: updatedAt
@@ -23,6 +25,8 @@ select_permissions:
       columns:
         - id
         - email
+        - email_verified
+        - is_anonymous
         - display_name
         - avatar_url
         - created_at

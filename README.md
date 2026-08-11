@@ -1,6 +1,8 @@
 # FlowForge — AI Agent Workflow Builder
 
 > **Live App**: [https://ai-workflow-builder-sable.vercel.app](https://ai-workflow-builder-sable.vercel.app)
+> **GitHub**: [https://github.com/AK2k30/ai-workflow-builder](https://github.com/AK2k30/ai-workflow-builder)
+> **Write-up**: [WRITEUP.md](./WRITEUP.md)
 
 A mini-n8n purpose-built for chaining AI agent steps. Users inside an organization build multi-step workflows, trigger them multiple ways, and every action is checked against two independent permission layers — one declarative in Hasura, one imperative in serverless function handlers.
 

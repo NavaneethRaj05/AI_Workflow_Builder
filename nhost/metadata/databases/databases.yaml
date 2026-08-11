@@ -29,4 +29,22 @@
         interval_sec: 10
         num_retries: 3
         timeout_sec: 60
-      comment: "Fires eventTriggerHandler when a notification row is inserted — triggers database_event workflows"
+      comment: "Fires eventTriggerHandler when a notification row is inserted — triggers database_event workflows watching the notifications table"
+
+    - name: on_workflow_run_insert
+      definition:
+        enable_manual: false
+        insert:
+          columns: "*"
+      table:
+        name: workflow_runs
+        schema: public
+      webhook: "{{NHOST_FUNCTIONS_URL}}/eventTriggerHandler"
+      headers:
+        - name: x-hasura-action-secret
+          value_from_env: NHOST_WEBHOOK_SECRET
+      retry_conf:
+        interval_sec: 10
+        num_retries: 3
+        timeout_sec: 60
+      comment: "Fires eventTriggerHandler when a new workflow_run is inserted — allows database_event workflows to chain off run starts"

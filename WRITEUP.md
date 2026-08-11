@@ -1,101 +1,81 @@
-# FlowForge — Design Write-up
+# FlowForge — Design Write-Up
 
 ## Schema Reasoning
 
-### Why these tables?
+The schema uses eight tables organised around a clear ownership chain:
+`organizations → org_members → workflows → workflow_steps / workflow_triggers → workflow_runs → step_runs`.
 
-The schema was designed around three core concerns: **multi-tenancy isolation**, **execution state**, and **auditability**.
+**Key decisions:**
 
-**`organizations` + `org_members`** form the tenancy boundary. Rather than storing a role per user globally, role is scoped to an org — the same user can be an owner in Org A and a viewer in Org B. This is the foundation of cross-org isolation.
-
-**`workflows` → `workflow_steps` → `workflow_triggers`** separate structure from execution. Steps are ordered integers (`step_order`) rather than a linked list — simpler to reorder, index, and query. The JSONB `config` field is intentionally polymorphic: each step type interprets it differently, avoiding the N-tables-for-N-types anti-pattern.
-
-**`workflow_runs` → `step_runs`** track execution state. The `paused` status on `workflow_runs` is essential — it's what allows the approval gate to stop execution and resume later without any external orchestrator. The `paused_at_step_id` column records exactly where to resume.
-
-**`step_runs.approved_by` / `approved_at`** are on the step run (not the workflow run) because approval is a step-level action, and you might have multiple approval gates in one workflow.
-
-**`notifications`** doubles as the sink for both the `notify` step type and the `db_write` step type — this keeps things simple while still providing a queryable audit log.
-
-### Computed fields
-
-`quota_remaining` is a PostgreSQL function (`get_org_quota_remaining`) exposed as a Hasura computed field, so it always reads `quota_limit - quota_used` without a separate query. `org_monthly_usage` is a view that aggregates runs for the current calendar month, providing both reporting and quota-reset logic.
+- `JSONB` for `workflow_steps.config` — each step type (llm_call, http_request, conditional_branch, etc.) has its own config shape. JSONB avoids a new migration every time a field is added to a step type, while still being queryable.
+- `workflow_runs.duration_ms` is a `GENERATED ALWAYS AS` computed column, not application code — the DB always tracks it correctly even for runs that fail or are manually cancelled.
+- `total_steps` and `completed_steps` on `workflow_runs` are Hasura computed fields backed by SQL functions (`workflow_run_step_count`, `workflow_run_completed_steps`). The live subscription payload includes these without a join, so the progress bar updates in real time.
+- `quota_remaining` on `organizations` is a computed field (`get_org_quota_remaining()`), exposing remaining budget as a first-class GraphQL field.
+- `check_and_increment_quota()` uses `SELECT ... FOR UPDATE` to prevent double-spending quota under concurrent runs.
+- `workflow_runs.paused_at_step_id` stores which step paused the run, enabling the resume path in `continueWorkflowFromStep()` to find the exact position without scanning all step_runs.
+- `step_runs.approved_by / approved_at / approval_comment` provide a full audit trail for every approval gate decision.
 
 ---
 
-## Two Permission Layers — How They Differ
+## Two Permission Layers
 
-### Layer 1: Hasura Row-Level Security (Declarative)
+### Layer 1 — Hasura Row-Level Security (declarative, always enforced)
 
-Layer 1 is enforced at the **database query level** by Hasura's permission rules. Every single table has a `filter` clause that includes a subquery against `org_members`:
+Every table that touches org data has a Hasura permission `filter` that traverses the relationship chain back to `org_members`:
 
 ```yaml
 filter:
-  org_id:
-    _in:
-      $select:
-        table: org_members
-        columns: [org_id]
-        where:
-          user_id: { _eq: X-Hasura-User-Id }
+  workflow:
+    organization:
+      org_members:
+        user_id: { _eq: X-Hasura-User-Id }
 ```
 
-This means:
-- A viewer in Org A can read Org A's workflows but not Org B's — even if they know the UUID
-- An editor cannot write `db_write` or `notify` steps — blocked at insert permission by checking `step_type _in [allowed_types]`
-- Owners can add webhook triggers; editors are restricted to `manual` and `scheduled`
+This is enforced at the Postgres query level — it cannot be bypassed by the application. An Org B user who guesses a valid Org A UUID gets **zero rows**, not a 403. They cannot even confirm the resource exists.
 
-Layer 1 is **declarative and automatic** — it fires on every GraphQL operation without any application code.
+Role differentiation is also expressed declaratively:
+- `workflow_steps` insert/update/delete permissions use an `_or` filter: `owner` may use any `step_type`; `editor` is restricted to `llm_call`, `http_request`, `conditional_branch`, `approval_gate`. Editors literally cannot save a `db_write` or `notify` step — Hasura's check constraint rejects it at the database level.
+- `workflow_triggers` applies the same pattern: editors cannot create `webhook` or `database_event` triggers.
+- Viewers have no insert or update permissions on any table.
 
-### Layer 2: Action Handler Runtime Checks (Imperative)
+### Layer 2 — Action Handler Code (imperative, for runtime decisions)
 
-Layer 2 is enforced in the **serverless function code** and handles decisions that cannot be expressed as static database rules.
+`triggerWorkflowRun` and `approveStep` are Hasura Actions backed by serverless functions. Both re-verify org membership and role in application code after Hasura forwards the request:
 
-The clearest example is `approveStep`:
+**triggerWorkflowRun:**
+1. Extracts caller user ID from `session_variables` forwarded by Hasura
+2. Fetches the workflow to get its `org_id`
+3. Calls `getUserOrgRole(callerId, workflow.org_id)` — must return `owner` or `editor`
+4. Checks quota (`quota_used < quota_limit`)
+5. Creates the run and executes
 
-```typescript
-// This cannot be a DB permission because:
-// 1. We need to check the approver's role in a specific org (which org? determined at runtime)
-// 2. The step config can specify custom required roles per gate
-// 3. After approval, the function needs to resume execution — no DB rule can "continue running a workflow"
+**approveStep:**
+1. Extracts approver ID from `session_variables`
+2. Fetches the `step_run` to get the workflow's `org_id`
+3. Calls `getUserOrgRole(approverId, orgId)` — must be in `step.config.required_approver_roles` (defaults to `['owner', 'editor']`)
+4. Marks step succeeded, then resumes the workflow
 
-const approverRole = await getUserOrgRole(approverId, orgId);
-const requiredRoles = stepConfig.required_approver_roles || ['owner', 'editor'];
+Layer 2 is necessary for approval gates because the required roles are configurable per gate (stored in `step.config`), and the decision happens mid-execution — a side effect (workflow resumption) that no database permission can express.
 
-if (!requiredRoles.includes(approverRole)) {
-  return res.status(403).json({
-    message: `Your role '${approverRole}' cannot approve this step. Required: ${requiredRoles.join(', ')}`
-  });
-}
-```
-
-Similarly, `triggerWorkflowRun` checks:
-1. Is the caller a member of the workflow's org? (layer 1 duplicate defense-in-depth)
-2. Has the org's quota been exhausted?
-3. After each step, is the step type allowed for this org's configuration?
-
-**Why two layers?** Because Layer 1 protects data reads/writes (the storage plane), while Layer 2 protects business logic decisions (the execution plane). An attacker who bypasses Layer 1 still hits Layer 2, and vice versa.
+The two layers are independent. Bypassing Layer 1 (calling the function directly with a forged JWT) still hits Layer 2's explicit role lookup. Bypassing Layer 2 (a direct Hasura mutation) still hits Layer 1's row-level filters.
 
 ---
 
-## Approval Gate Pause/Resume
+## Approval Gate Pause / Resume
 
-The approval gate is implemented without any external job queue or polling:
+1. `executeWorkflow()` iterates steps in order. On reaching an `approval_gate` step:
+   - Inserts a `step_run` with `status = awaiting_approval`
+   - Updates `workflow_runs.status = paused`, writes `paused_at_step_id`
+   - Returns immediately — the Hasura WebSocket subscription pushes the paused state to every connected client without any polling
 
-### Pause
+2. The run detail page shows an **Approve → Continue** button to users with `owner` or `editor` role. Viewers see a notice but no action.
 
-1. Workflow engine hits an `approval_gate` step
-2. Engine sets `step_runs.status = 'awaiting_approval'` and `workflow_runs.status = 'paused'`, stores `paused_at_step_id`
-3. Engine returns immediately — the function exits
-4. The GraphQL subscription on `step_runs` and `workflow_runs` automatically pushes the paused state to all connected clients
+3. On approval, the `approveStep` Action handler:
+   - Re-verifies the approver's role (Layer 2 check)
+   - Marks the step as `succeeded` with `approved_by`, `approved_at`, `approval_comment`
+   - Responds 200 to the client immediately (so the UI updates)
+   - Calls `continueWorkflowFromStep()` asynchronously
 
-### Resume (approveStep Action)
+4. `continueWorkflowFromStep()` fetches the **full `workflow_steps` list** (not `step_runs`, which only contains already-executed steps), finds the approval gate by `paused_at_step_id`, and executes all steps after it. Each status change fires through the subscription.
 
-1. An owner/editor calls the `approveStep` GraphQL mutation
-2. Hasura validates the role (Layer 1: only owner/editor can invoke this Action)
-3. The handler function validates role again against the specific org (Layer 2)
-4. Handler updates `step_runs.approved_by`, `approved_at`, `status = succeeded`
-5. Handler calls `continueWorkflowFromStep(runId, pausedAtStepId)` — which re-queries the workflow, finds all steps after the approval gate, and executes them
-6. Execution resumes from the next step, updating `step_runs` throughout
-7. Subscription fires on every status change, so the UI shows the resumed steps appearing in real time
-
-**Key design decision**: The resume is synchronous within the same `approveStep` function call (after responding 200 to the client). This avoids needing a message queue or separate orchestrator while still giving the user immediate feedback. For very long workflows, a production system would use a proper job queue (BullMQ, etc.), but this approach is correct for the scope of this assignment.
+5. On completion, `workflow_runs.status = completed` and `quota_used` is incremented.
