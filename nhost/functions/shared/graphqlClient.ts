@@ -19,10 +19,6 @@ export function getAdminClient(req?: any) {
   const secret = getAdminSecret();
   const headers: Record<string, string> = {};
 
-  if (secret) {
-    headers['x-hasura-admin-secret'] = secret;
-  }
-
   const authHeader =
     (req?.headers?.authorization as string) ||
     (req?.headers?.Authorization as string) ||
@@ -30,6 +26,8 @@ export function getAdminClient(req?: any) {
 
   if (authHeader) {
     headers['Authorization'] = authHeader;
+  } else if (secret) {
+    headers['x-hasura-admin-secret'] = secret;
   }
 
   return new GraphQLClient(gqlUrl, { headers });

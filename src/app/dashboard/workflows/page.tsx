@@ -13,6 +13,7 @@ import {
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
+import nhost from '@/lib/nhost';
 import toast from 'react-hot-toast';
 
 const STEP_TYPE_ICONS: Record<string, string> = {
@@ -76,17 +77,24 @@ export default function WorkflowsPage() {
       console.warn('[Run] Hasura Action failed, using server-side fallback:', msg);
     }
 
-    // Fallback: server-side API route (uses admin secret, no user token needed)
+    // Fallback: server-side API route
     try {
       toast.loading('Starting workflow...', { id: 'run-toast' });
+      const token = nhost.auth.getAccessToken();
       const r = await fetch('/api/run-workflow', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ workflow_id: workflowId, org_id: selectedOrgId }),
       });
       const body = await r.json();
       if (!r.ok) {
-        toast.error(body.error || 'Failed to start workflow', { id: 'run-toast' });
+        const hint = body.error?.includes('x-hasura-admin-secret') || body.error?.includes('NHOST_ADMIN_SECRET')
+          ? 'NHOST_ADMIN_SECRET in .env.local is invalid. Update it with the secret from Nhost Dashboard → Settings → Secrets.'
+          : body.error || 'Failed to start workflow';
+        toast.error(hint, { id: 'run-toast', duration: 7000 });
         return;
       }
       toast.success('Workflow started!', { id: 'run-toast' });
