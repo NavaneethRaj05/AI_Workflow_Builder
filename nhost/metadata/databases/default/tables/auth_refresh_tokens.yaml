@@ -16,6 +16,8 @@ configuration:
   custom_column_names:
     created_at: createdAt
     expires_at: expiresAt
+    refresh_token: refreshToken
+    updated_at: updatedAt
     user_id: userId
 object_relationships:
   - name: user
@@ -24,11 +26,5 @@ object_relationships:
 select_permissions:
   - role: user
     permission:
-      columns:
-        - id
-        - created_at
-        - expires_at
-        - user_id
-      filter:
-        user_id:
-          _eq: X-Hasura-User-Id
+      columns: "*"
+      filter: {}

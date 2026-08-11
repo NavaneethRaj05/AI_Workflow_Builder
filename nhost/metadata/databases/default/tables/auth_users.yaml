@@ -14,6 +14,7 @@ configuration:
     update: updateUsers
     update_by_pk: updateUser
   custom_column_names:
+    active_mfa_type: activeMfaType
     avatar_url: avatarUrl
     created_at: createdAt
     default_role: defaultRole
@@ -27,12 +28,17 @@ configuration:
     locale: locale
     metadata: metadata
     new_email: newEmail
+    otp_hash: otpHash
+    otp_hash_expires_at: otpHashExpiresAt
+    otp_method_last_used: otpMethodLastUsed
     password_hash: passwordHash
     phone_number: phoneNumber
     phone_number_verified: phoneNumberVerified
     ticket: ticket
     ticket_expires_at: ticketExpiresAt
+    totp_secret: totpSecret
     updated_at: updatedAt
+    webauthn_current_challenge: webauthnCurrentChallenge
 array_relationships:
   - name: org_members
     using:

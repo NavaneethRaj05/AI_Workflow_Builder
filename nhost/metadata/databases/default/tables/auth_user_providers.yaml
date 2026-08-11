@@ -27,13 +27,5 @@ object_relationships:
 select_permissions:
   - role: user
     permission:
-      columns:
-        - id
-        - created_at
-        - provider_id
-        - provider_user_id
-        - updated_at
-        - user_id
-      filter:
-        user_id:
-          _eq: X-Hasura-User-Id
+      columns: "*"
+      filter: {}

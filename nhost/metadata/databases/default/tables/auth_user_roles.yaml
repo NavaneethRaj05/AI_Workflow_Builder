@@ -1,6 +1,18 @@
 table:
   name: user_roles
   schema: auth
+configuration:
+  custom_name: authRoles
+  custom_root_fields:
+    delete: deleteAuthRoles
+    delete_by_pk: deleteAuthRole
+    insert: insertAuthRoles
+    insert_one: insertAuthRole
+    select: authRoles
+    select_aggregate: authRolesAggregate
+    select_by_pk: authRole
+    update: updateAuthRoles
+    update_by_pk: updateAuthRole
 object_relationships:
   - name: user
     using:
@@ -8,11 +20,5 @@ object_relationships:
 select_permissions:
   - role: user
     permission:
-      columns:
-        - id
-        - created_at
-        - user_id
-        - role
-      filter:
-        user_id:
-          _eq: X-Hasura-User-Id
+      columns: "*"
+      filter: {}
