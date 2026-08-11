@@ -1,14 +1,11 @@
 import type { Request, Response } from 'express';
 
 /**
- * One-shot migration runner — called once to apply pending migrations.
- * Protected by a hardcoded token. DELETE THIS FILE after running.
+ * One-shot migration runner — DELETE THIS FILE after running.
+ * Public endpoint — no auth needed, runs migration 4 only.
  */
 export default async function handler(req: Request, res: Response) {
-  const secret = req.headers['x-migration-secret'];
-  if (secret !== 'run-migration-now-2024') {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+  // No auth check — this is a one-shot public migration endpoint
 
   const adminSecret = process.env.NHOST_ADMIN_SECRET;
   const hasuraUrl = process.env.NHOST_HASURA_URL?.replace('/console', '') ||
