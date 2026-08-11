@@ -295,11 +295,15 @@ export async function continueWorkflowFromStep(
       id: runId,
       set: { status: 'completed', paused_at_step_id: null, completed_at: new Date().toISOString(), output: previousOutput },
     });
-    await client.request(gql`
-      mutation IncrementQuota($org_id: uuid!) {
-        update_organizations_by_pk(pk_columns: {id: $org_id}, _inc: {quota_used: 1}) { id }
-      }
-    `, { org_id: run.org_id });
+    try {
+      await client.request(gql`
+        mutation IncrementQuota($org_id: uuid!) {
+          update_organizations_by_pk(pk_columns: {id: $org_id}, _inc: {quota_used: 1}) { id }
+        }
+      `, { org_id: run.org_id });
+    } catch (quotaErr: any) {
+      console.warn('[WorkflowEngine] Quota increment warning:', quotaErr.message);
+    }
     return { status: 'completed' };
   }
 
@@ -312,30 +316,16 @@ export async function continueWorkflowFromStep(
   let runFailed = false;
 
   for (const step of remainingSteps) {
-    const existing = run.step_runs?.find((sr: any) => sr.workflow_step_id === step.id);
-    if (existing && existing.status === 'succeeded') {
-      previousOutput = existing.output ?? previousOutput;
-      continue;
-    }
+    const stepRunData: any = await client.request(CREATE_STEP_RUN, {
+      object: {
+        workflow_run_id: runId,
+        workflow_step_id: step.id,
+        status: 'pending',
+        input: previousOutput,
+      },
+    });
 
-    let stepRunId = existing?.id;
-    if (!stepRunId) {
-      const stepRunData: any = await client.request(CREATE_STEP_RUN, {
-        object: {
-          workflow_run_id: runId,
-          workflow_step_id: step.id,
-          status: 'pending',
-          input: previousOutput,
-        },
-      });
-      stepRunId = stepRunData?.insert_step_runs_one?.id;
-    }
-
-    if (!stepRunId) {
-      console.error(`[WorkflowEngine] Could not create step_run for step ${step.id}`);
-      continue;
-    }
-
+    const stepRunId = stepRunData?.insert_step_runs_one?.id;
     await client.request(UPDATE_STEP_RUN, {
       id: stepRunId,
       set: { status: 'running', started_at: new Date().toISOString(), attempt_count: 1 },
