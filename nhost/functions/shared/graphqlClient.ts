@@ -7,17 +7,21 @@ const gqlUrl = process.env.NHOST_GRAPHQL_URL ||
     ? `https://${process.env.NHOST_SUBDOMAIN}.graphql.${process.env.NHOST_REGION || 'ap-south-1'}.nhost.run/v1`
     : 'https://bykigbyxcjykjxbhakqc.graphql.ap-south-1.nhost.run/v1');
 
-const getAdminSecret = (): string => {
-  return process.env.HASURA_GRAPHQL_ADMIN_SECRET ||
-         process.env.NHOST_ADMIN_SECRET ||
-         '01234567890123456789012345678912';
+const getAdminSecret = (): string | null => {
+  const secret = process.env.HASURA_GRAPHQL_ADMIN_SECRET || process.env.NHOST_ADMIN_SECRET;
+  if (!secret || secret === 'your-admin-secret' || secret === '01234567890123456789012345678912') {
+    return null;
+  }
+  return secret;
 };
 
 export function getAdminClient(req?: any) {
   const secret = getAdminSecret();
-  const headers: Record<string, string> = {
-    'x-hasura-admin-secret': secret,
-  };
+  const headers: Record<string, string> = {};
+
+  if (secret) {
+    headers['x-hasura-admin-secret'] = secret;
+  }
 
   const authHeader =
     (req?.headers?.authorization as string) ||
