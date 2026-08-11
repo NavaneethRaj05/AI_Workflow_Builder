@@ -7,23 +7,20 @@ const gqlUrl = process.env.NHOST_GRAPHQL_URL ||
     ? `https://${process.env.NHOST_SUBDOMAIN}.graphql.${process.env.NHOST_REGION || 'ap-south-1'}.nhost.run/v1`
     : 'https://bykigbyxcjykjxbhakqc.graphql.ap-south-1.nhost.run/v1');
 
-const getAdminSecret = () => {
-  const secrets = [
-    process.env.HASURA_GRAPHQL_ADMIN_SECRET,
-    process.env.NHOST_ADMIN_SECRET,
-  ].filter(s => s && s !== 'your-admin-secret' && s !== '01234567890123456789012345678912');
-
-  return secrets[0] || process.env.HASURA_GRAPHQL_ADMIN_SECRET || '01234567890123456789012345678912';
+const getAdminSecret = (): string | null => {
+  const secret = process.env.HASURA_GRAPHQL_ADMIN_SECRET || process.env.NHOST_ADMIN_SECRET;
+  if (!secret || secret === 'your-admin-secret' || secret === '01234567890123456789012345678912') {
+    return null;
+  }
+  return secret;
 };
-
-const adminSecret = getAdminSecret();
 
 export function getAdminClient(req?: any) {
   const secret = getAdminSecret();
   const headers: Record<string, string> = {};
 
   // 1. Secret header if valid secret is present
-  if (secret && secret !== '01234567890123456789012345678912' && secret !== 'your-admin-secret') {
+  if (secret) {
     headers['x-hasura-admin-secret'] = secret;
   }
 
@@ -46,11 +43,13 @@ export function getAdminClient(req?: any) {
   return new GraphQLClient(gqlUrl, { headers });
 }
 
-// Admin GraphQL client (bypasses row-level security)
-export const adminClient = new GraphQLClient(gqlUrl, {
-  headers: {
-    'x-hasura-admin-secret': adminSecret,
-  },
+// Proxy adminClient to getAdminClient() so all legacy calls use dynamic headers
+export const adminClient = new Proxy({} as GraphQLClient, {
+  get(_target, prop: keyof GraphQLClient) {
+    const client = getAdminClient();
+    const value = (client as any)[prop];
+    return typeof value === 'function' ? value.bind(client) : value;
+  }
 });
 
 // Authenticated client (respects row-level security)
