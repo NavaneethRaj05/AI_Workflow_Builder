@@ -135,10 +135,10 @@ export async function executeWorkflow(
           output = await executeHttpRequest(step, previousOutput, stepRunId);
           break;
         case 'db_write':
-          output = await executeDbWrite(step, previousOutput, orgId, runId, stepRunId);
+          output = await executeDbWrite(step, previousOutput, orgId, runId, stepRunId, adminClient);
           break;
         case 'notify':
-          output = await executeNotify(step, previousOutput, orgId, runId, stepRunId);
+          output = await executeNotify(step, previousOutput, orgId, runId, stepRunId, adminClient);
           break;
         case 'conditional_branch':
           output = executeConditionalBranch(step, previousOutput);
@@ -316,10 +316,10 @@ export async function continueWorkflowFromStep(
           output = await executeHttpRequest(step, previousOutput, stepRunId);
           break;
         case 'db_write':
-          output = await executeDbWrite(step, previousOutput, run.org_id, runId, stepRunId);
+          output = await executeDbWrite(step, previousOutput, run.org_id, runId, stepRunId, adminClient);
           break;
         case 'notify':
-          output = await executeNotify(step, previousOutput, run.org_id, runId, stepRunId);
+          output = await executeNotify(step, previousOutput, run.org_id, runId, stepRunId, adminClient);
           break;
         case 'conditional_branch':
           output = executeConditionalBranch(step, previousOutput);
@@ -480,7 +480,8 @@ async function executeDbWrite(
   input: any,
   orgId: string,
   runId: string,
-  stepRunId: string
+  stepRunId: string,
+  client?: GraphQLClient
 ): Promise<any> {
   // Write result to notifications table (or a custom table if configured)
   const config = step.config;
@@ -489,7 +490,9 @@ async function executeDbWrite(
     ? config.message_template.replace(/\{\{input\}\}/g, JSON.stringify(input))
     : JSON.stringify(input);
 
-  const result: any = await adminClient.request(INSERT_NOTIFICATION, {
+  const gqlClient = client || getAdminClient();
+
+  const result: any = await gqlClient.request(INSERT_NOTIFICATION, {
     object: {
       org_id: orgId,
       workflow_run_id: runId,
@@ -513,7 +516,8 @@ async function executeNotify(
   input: any,
   orgId: string,
   runId: string,
-  stepRunId: string
+  stepRunId: string,
+  client?: GraphQLClient
 ): Promise<any> {
   const config = step.config;
   const channel = config.channel || 'system';
@@ -521,8 +525,10 @@ async function executeNotify(
   const messageTemplate = config.message || 'Workflow step completed with output: {{input}}';
   const message = messageTemplate.replace(/\{\{input\}\}/g, JSON.stringify(input));
 
+  const gqlClient = client || getAdminClient();
+
   // Save notification to DB first
-  await adminClient.request(INSERT_NOTIFICATION, {
+  await gqlClient.request(INSERT_NOTIFICATION, {
     object: {
       org_id: orgId,
       workflow_run_id: runId,
