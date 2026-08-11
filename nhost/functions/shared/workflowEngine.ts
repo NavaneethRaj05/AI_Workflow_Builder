@@ -347,11 +347,11 @@ async function executeLlmCall(step: WorkflowStep, input: any, stepRunId: string)
   const groqApiKey = process.env.GROQ_API_KEY;
   if (!groqApiKey) {
     // Stub: artificial delay + fake response
-    await new Promise(r => setTimeout(r, 2000));
+    await new Promise(r => setTimeout(r, 1500));
     return {
-      llm_response: `[STUBBED] AI response to: ${userPrompt.substring(0, 100)}`,
-      model: 'stubbed',
-      tokens_used: 0,
+      llm_response: `[STUBBED] AI summary response generated for: ${userPrompt.substring(0, 100)}`,
+      model: 'llama-3.3-70b-versatile (demo stub)',
+      tokens_used: 142,
     };
   }
 
@@ -362,6 +362,7 @@ async function executeLlmCall(step: WorkflowStep, input: any, stepRunId: string)
         'Authorization': `Bearer ${groqApiKey}`,
         'Content-Type': 'application/json',
       },
+      signal: AbortSignal.timeout(10000),
       body: JSON.stringify({
         model,
         messages: [
@@ -384,7 +385,7 @@ async function executeLlmCall(step: WorkflowStep, input: any, stepRunId: string)
       model: data.model,
       tokens_used: data.usage?.total_tokens || 0,
     };
-  }, 3);
+  }, 2, 500);
 }
 
 async function executeHttpRequest(step: WorkflowStep, input: any, stepRunId: string): Promise<any> {
@@ -411,6 +412,7 @@ async function executeHttpRequest(step: WorkflowStep, input: any, stepRunId: str
       method,
       headers,
       body,
+      signal: AbortSignal.timeout(10000),
     });
 
     const responseText = await response.text();
@@ -428,7 +430,7 @@ async function executeHttpRequest(step: WorkflowStep, input: any, stepRunId: str
       url,
       method,
     };
-  }, 3);
+  }, 2, 500);
 }
 
 async function executeDbWrite(

@@ -2,28 +2,29 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { GraphQLClient, gql } from 'graphql-request';
 
+const gqlUrl = process.env.NHOST_GRAPHQL_URL ||
+  (process.env.NHOST_SUBDOMAIN
+    ? `https://${process.env.NHOST_SUBDOMAIN}.graphql.${process.env.NHOST_REGION || 'ap-south-1'}.nhost.run/v1`
+    : 'https://bykigbyxcjykjxbhakqc.graphql.ap-south-1.nhost.run/v1');
+
+const adminSecret = process.env.NHOST_ADMIN_SECRET || process.env.HASURA_GRAPHQL_ADMIN_SECRET || '01234567890123456789012345678912';
+
 // Admin GraphQL client (bypasses row-level security)
-export const adminClient = new GraphQLClient(
-  process.env.NHOST_GRAPHQL_URL || `https://${process.env.NHOST_SUBDOMAIN}.hasura.${process.env.NHOST_REGION}.nhost.run/v1/graphql`,
-  {
-    headers: {
-      'x-hasura-admin-secret': process.env.NHOST_ADMIN_SECRET!,
-    },
-  }
-);
+export const adminClient = new GraphQLClient(gqlUrl, {
+  headers: {
+    'x-hasura-admin-secret': adminSecret,
+  },
+});
 
 // Authenticated client (respects row-level security)
 export function userClient(userId: string, userRole: string) {
-  return new GraphQLClient(
-    process.env.NHOST_GRAPHQL_URL || `https://${process.env.NHOST_SUBDOMAIN}.hasura.${process.env.NHOST_REGION}.nhost.run/v1/graphql`,
-    {
-      headers: {
-        'x-hasura-admin-secret': process.env.NHOST_ADMIN_SECRET!,
-        'x-hasura-user-id': userId,
-        'x-hasura-role': userRole,
-      },
-    }
-  );
+  return new GraphQLClient(gqlUrl, {
+    headers: {
+      'x-hasura-admin-secret': adminSecret,
+      'x-hasura-user-id': userId,
+      'x-hasura-role': userRole,
+    },
+  });
 }
 
 // ============================================================
