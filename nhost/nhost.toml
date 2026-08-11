@@ -2,8 +2,8 @@
   version = "v2.49.2-ce"
 
   [[hasura.jwtSecrets]]
-    type = "HS256"
-    key = "{{ secrets.MY_JWT_SECRET }}"
+    type = "RS256"
+    key = "{{ secrets.NHOST_JWT_PUBLIC_KEY }}"
 
   [hasura.settings]
     corsDomain = ["*"]
@@ -24,6 +24,7 @@
     version = 22
 
 [auth]
+  version = "0.50.1"
 
   [auth.redirections]
     clientUrl = "https://ai-workflow-builder-sable.vercel.app"
