@@ -98,6 +98,9 @@ export default async function handler(req: Request, res: Response) {
 
   } catch (error: any) {
     console.error('[executePendingRun] Error:', error);
-    return res.status(500).json({ message: error.message || 'Internal server error' });
+    return res.status(500).json({
+      message: error.message || 'Internal server error',
+      details: error?.response?.errors || error?.response || error?.message
+    });
   }
 }
