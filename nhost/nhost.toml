@@ -3,7 +3,7 @@
 
   [[hasura.jwtSecrets]]
     type = "HS256"
-    key = "{{ secrets.HASURA_GRAPHQL_JWT_SECRET }}"
+    key = "01234567890123456789012345678912"
 
 
   [hasura.settings]
