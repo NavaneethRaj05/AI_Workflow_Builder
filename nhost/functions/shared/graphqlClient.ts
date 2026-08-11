@@ -19,25 +19,19 @@ export function getAdminClient(req?: any) {
   const secret = getAdminSecret();
   const headers: Record<string, string> = {};
 
-  // 1. Secret header if valid secret is present
+  // 1. Admin secret if present in environment
   if (secret) {
     headers['x-hasura-admin-secret'] = secret;
   }
 
-  // 2. User authorization header forwarded from Hasura Action
-  if (req?.headers?.authorization) {
-    headers['Authorization'] = req.headers.authorization;
-  }
+  // 2. Case-insensitive Authorization header from caller
+  const authHeader =
+    (req?.headers?.authorization as string) ||
+    (req?.headers?.Authorization as string) ||
+    (req?.headers as any)?.['authorization'];
 
-  // 3. Hasura session variables fallback
-  if (!headers['x-hasura-admin-secret'] && !headers['Authorization']) {
-    const sessionVars = req?.body?.session_variables || req?.headers || {};
-    const userId = sessionVars['x-hasura-user-id'] || sessionVars['X-Hasura-User-Id'];
-    const role = sessionVars['x-hasura-role'] || sessionVars['X-Hasura-Role'] || 'user';
-    if (userId) {
-      headers['x-hasura-user-id'] = userId;
-      headers['x-hasura-role'] = role;
-    }
+  if (authHeader) {
+    headers['Authorization'] = authHeader;
   }
 
   return new GraphQLClient(gqlUrl, { headers });
