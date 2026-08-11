@@ -136,18 +136,16 @@ export const CREATE_STEP_RUN = gql`
 
 export const UPDATE_STEP_RUN = gql`
   mutation UpdateStepRun($id: uuid!, $set: step_runs_set_input!) {
-    update_step_runs_by_pk(pk_columns: {id: $id}, _set: $set) {
-      id
-      status
+    update_step_runs(where: { id: { _eq: $id } }, _set: $set) {
+      affected_rows
     }
   }
 `;
 
 export const UPDATE_WORKFLOW_RUN = gql`
   mutation UpdateWorkflowRun($id: uuid!, $set: workflow_runs_set_input!) {
-    update_workflow_runs_by_pk(pk_columns: {id: $id}, _set: $set) {
-      id
-      status
+    update_workflow_runs(where: { id: { _eq: $id } }, _set: $set) {
+      affected_rows
     }
   }
 `;
