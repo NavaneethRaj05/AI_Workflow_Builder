@@ -29,8 +29,7 @@
     clientUrl = "https://ai-workflow-builder-sable.vercel.app"
     allowedUrls = ["http://localhost:3000", "https://ai-workflow-builder-sable.vercel.app"]
 
-  [auth.signUp]
-    enabled = true
+
 
   [auth.method.emailPassword]
     emailVerificationRequired = false
