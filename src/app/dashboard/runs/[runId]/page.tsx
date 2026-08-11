@@ -8,16 +8,12 @@ import {
   SUBSCRIBE_STEP_RUNS,
   SUBSCRIBE_WORKFLOW_RUN,
   APPROVE_STEP,
-  UPDATE_WORKFLOW_RUN_STATUS,
-  INSERT_STEP_RUN,
-  UPDATE_STEP_RUN_STATUS,
 } from '@/lib/graphql/operations';
 import { useOrgStore } from '@/lib/store';
 import { formatDistanceToNow, format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { useState, useEffect } from 'react';
 import nhost from '@/lib/nhost';
-import { v4 as uuidv4 } from 'uuid';
 
 const STEP_TYPE_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
   llm_call: { label: 'LLM Call', color: '#8b5cf6', icon: '🤖' },
@@ -253,113 +249,31 @@ export default function RunMonitorPage() {
     onError: (e) => toast.error(e.message),
   });
 
-  const [updateRunStatus] = useMutation(UPDATE_WORKFLOW_RUN_STATUS);
-  const [insertStepRun] = useMutation(INSERT_STEP_RUN);
-  const [updateStepRunStatus] = useMutation(UPDATE_STEP_RUN_STATUS);
-
   const run = liveRun?.workflow_runs_by_pk || runData?.workflow_runs_by_pk;
   const stepRuns = liveSteps?.step_runs || [];
   const workflow = runData?.workflow_runs_by_pk?.workflow;
   const [hasTriggered, setHasTriggered] = useState(false);
 
   useEffect(() => {
-    async function runWorkflowSteps() {
-      if (!run || run.status !== 'pending' || stepRuns.length > 0 || !workflow || hasTriggered) return;
-      setHasTriggered(true);
+    // If the run is still pending and has no step_runs yet, fire the
+    // executePendingRun function. This handles the fallback case where the
+    // workflow run was created directly (not via the Hasura Action) and the
+    // original fetch call may have failed silently.
+    if (!run || run.status !== 'pending' || stepRuns.length > 0 || hasTriggered) return;
+    setHasTriggered(true);
 
-      // Attempt serverless function trigger first
-      nhost.functions.call('executePendingRun', { run_id: params.runId }).catch(console.warn);
-
-      const steps = (workflow.workflow_steps || []).filter((s: any) => s.is_enabled);
-      if (steps.length === 0) {
-        await updateRunStatus({
-          variables: { id: params.runId, status: 'completed', completed_at: new Date().toISOString() },
-        });
-        return;
-      }
-
-      // Mark run as running
-      await updateRunStatus({
-        variables: { id: params.runId, status: 'running' },
-      });
-
-      let prevOutput: any = run.input || {};
-
-      for (const step of steps) {
-        // 1. Insert step run
-        const stepRunRes = await insertStepRun({
-          variables: {
-            object: {
-              workflow_run_id: params.runId,
-              workflow_step_id: step.id,
-              status: 'pending',
-              input: prevOutput,
-            },
-          },
-        });
-        const stepRunId = stepRunRes.data?.insert_step_runs_one?.id;
-        if (!stepRunId) break;
-
-        // 2. Mark step run as running
-        await updateStepRunStatus({
-          variables: { id: stepRunId, status: 'running', attempt_count: 1 },
-        });
-
-        // 3. Check for approval gate
-        if (step.step_type === 'approval_gate') {
-          await updateStepRunStatus({
-            variables: { id: stepRunId, status: 'awaiting_approval' },
-          });
-          await updateRunStatus({
-            variables: { id: params.runId, status: 'paused' },
-          });
-          toast('⏸ Workflow paused for approval gate', { icon: '🔐' });
-          return;
-        }
-
-        // Simulate step processing delay for smooth UI animation
-        await new Promise((r) => setTimeout(r, 600));
-
-        let output: any = { executed: true, timestamp: new Date().toISOString() };
-        if (step.step_type === 'llm_call') {
-          output = { text: `Processed step response: ${step.name}`, model: step.config?.model || 'groq/llama-3' };
-        } else if (step.step_type === 'http_request') {
-          output = { status: 200, data: { message: 'HTTP Request Successful', url: step.config?.url || 'https://api.example.com' } };
-        } else if (step.step_type === 'conditional_branch') {
-          output = { branch: 'true_path', condition_met: true };
-        } else if (step.step_type === 'notify') {
-          output = { sent: true, channel: step.config?.channel || 'slack' };
-        } else if (step.step_type === 'db_write') {
-          output = { inserted_id: uuidv4(), rows_affected: 1 };
-        }
-
-        prevOutput = output;
-
-        // 4. Mark step run as succeeded
-        await updateStepRunStatus({
-          variables: {
-            id: stepRunId,
-            status: 'succeeded',
-            completed_at: new Date().toISOString(),
-            output,
-          },
-        });
-      }
-
-      // Mark run as completed
-      await updateRunStatus({
-        variables: {
-          id: params.runId,
-          status: 'completed',
-          completed_at: new Date().toISOString(),
-          output: prevOutput,
-        },
-      });
-      toast.success('Workflow run completed!');
-    }
-
-    runWorkflowSteps().catch(console.warn);
-  }, [run, stepRuns.length, workflow, hasTriggered, params.runId, updateRunStatus, insertStepRun, updateStepRunStatus]);
+    const token = nhost.auth.getAccessToken();
+    fetch('/nhost/functions/executePendingRun', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ run_id: params.runId }),
+    }).catch((e) => {
+      console.warn('[RunMonitor] executePendingRun retry warning:', e);
+    });
+  }, [run, stepRuns.length, hasTriggered, params.runId]);
 
   const statusConf = STATUS_CONFIG[run?.status] || STATUS_CONFIG.pending;
   const isRunning = run?.status === 'running';

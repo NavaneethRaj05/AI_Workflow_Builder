@@ -6,7 +6,6 @@ import { executeWorkflow } from './shared/workflowEngine';
 import { gql } from 'graphql-request';
 import crypto from 'crypto';
 
-/**
 export default async function handler(req: Request, res: Response) {
   // Set CORS headers for browser requests
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -22,8 +21,14 @@ export default async function handler(req: Request, res: Response) {
   }
 
   try {
-    const { input } = req.body;
-    const { trigger_id, secret: providedSecret, data: webhookData } = input || req.body;
+    const body = req.body || {};
+    // Support both Hasura Action format ({ input: { ... } }) and direct POST
+    const input = body.input || body;
+    const trigger_id = input?.trigger_id;
+    const providedSecret = input?.secret;
+    const webhookData = input?.data || {};
+
+    if (!trigger_id) {
       return res.status(400).json({ message: 'trigger_id is required' });
     }
 
@@ -95,9 +100,8 @@ export default async function handler(req: Request, res: Response) {
         org_id: trigger.workflow.org_id,
         triggered_by: null,
         trigger_type: 'webhook',
-        trigger_data: webhookData || {},
         status: 'pending',
-        input: webhookData || {},
+        input: webhookData,
       },
     });
 
@@ -116,7 +120,7 @@ export default async function handler(req: Request, res: Response) {
       runId,
       trigger.workflow.org_id,
       null,
-      webhookData || {}
+      webhookData
     ).catch(err => {
       console.error(`[webhookIngest] Execution error for run ${runId}:`, err);
     });

@@ -71,8 +71,18 @@ export default function WorkflowsPage() {
         const runId = directRes.data?.insert_workflow_runs_one?.id;
         if (runId) {
           toast.success('Workflow run started!');
-          nhost.functions.call('executePendingRun', { run_id: runId }).catch((e) => {
-            console.warn('executePendingRun call warning:', e);
+          // Use fetch directly with the current access token instead of the Nhost SDK
+          // to avoid the token-refresh loop that causes the 401 → 500 cascade.
+          const token = nhost.auth.getAccessToken();
+          fetch('/nhost/functions/executePendingRun', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({ run_id: runId }),
+          }).catch((e) => {
+            console.warn('executePendingRun fetch warning:', e);
           });
           router.push(`/dashboard/runs/${runId}`);
           return;

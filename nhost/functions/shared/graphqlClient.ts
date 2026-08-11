@@ -43,13 +43,15 @@ export const adminClient = new Proxy({} as GraphQLClient, {
 
 // Authenticated client (respects row-level security)
 export function userClient(userId: string, userRole: string) {
-  return new GraphQLClient(gqlUrl, {
-    headers: {
-      'x-hasura-admin-secret': adminSecret,
-      'x-hasura-user-id': userId,
-      'x-hasura-role': userRole,
-    },
-  });
+  const secret = getAdminSecret();
+  const headers: Record<string, string> = {
+    'x-hasura-user-id': userId,
+    'x-hasura-role': userRole,
+  };
+  if (secret) {
+    headers['x-hasura-admin-secret'] = secret;
+  }
+  return new GraphQLClient(gqlUrl, { headers });
 }
 
 // ============================================================

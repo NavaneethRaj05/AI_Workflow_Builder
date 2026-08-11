@@ -3,7 +3,7 @@
 
 import { useQuery } from '@apollo/client';
 import { useOrgStore } from '@/lib/store';
-import { GET_ORG_WORKFLOWS } from '@/lib/graphql/operations';
+import { GET_ORG_RUNS } from '@/lib/graphql/operations';
 import Link from 'next/link';
 import { format } from 'date-fns';
 
@@ -19,17 +19,13 @@ const STATUS_CONFIG: Record<string, { color: string; icon: string }> = {
 export default function RunsPage() {
   const { selectedOrgId } = useOrgStore();
 
-  const { data, loading } = useQuery(GET_ORG_WORKFLOWS, {
-    variables: { org_id: selectedOrgId },
+  const { data, loading } = useQuery(GET_ORG_RUNS, {
+    variables: { org_id: selectedOrgId, limit: 50 },
     skip: !selectedOrgId,
+    fetchPolicy: 'cache-and-network',
   });
 
-  const workflows = data?.workflows || [];
-  const allRuns = workflows
-    .flatMap((w: any) =>
-      (w.workflow_runs || []).map((r: any) => ({ ...r, workflow: w }))
-    )
-    .sort((a: any, b: any) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime());
+  const allRuns = data?.workflow_runs || [];
 
   return (
     <div className="p-8 animate-fade-in">
@@ -40,7 +36,7 @@ export default function RunsPage() {
         </p>
       </div>
 
-      {loading ? (
+      {loading && allRuns.length === 0 ? (
         <div className="flex flex-col gap-3">
           {[1, 2, 3, 4, 5].map(i => <div key={i} className="skeleton h-16 rounded-xl" />)}
         </div>
@@ -68,7 +64,7 @@ export default function RunsPage() {
                 <div className="text-xl">{statusConf.icon}</div>
 
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>
                       {run.workflow?.name}
                     </span>
@@ -80,11 +76,22 @@ export default function RunsPage() {
                   <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
                     {format(new Date(run.started_at), 'MMM d, yyyy HH:mm')}
                     {duration !== null && ` · ${duration}s`}
+                    {run.total_steps > 0 && ` · ${run.completed_steps ?? 0}/${run.total_steps} steps`}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <span className={`badge badge-${run.status}`}>
+                  <span
+                    className="badge"
+                    style={{
+                      background: statusConf.color + '20',
+                      color: statusConf.color,
+                      border: `1px solid ${statusConf.color}40`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
                     {run.status === 'running' && (
                       <span className="step-running-indicator" style={{ width: '5px', height: '5px' }} />
                     )}

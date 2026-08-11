@@ -455,8 +455,17 @@ export default function WorkflowEditorPage() {
         const runId = directRes.data?.insert_workflow_runs_one?.id;
         if (runId) {
           toast.success('Workflow run started!');
-          nhost.functions.call('executePendingRun', { run_id: runId }).catch((e) => {
-            console.warn('executePendingRun call warning:', e);
+          // Use fetch directly to avoid SDK token-refresh 401 loop
+          const token = nhost.auth.getAccessToken();
+          fetch('/nhost/functions/executePendingRun', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({ run_id: runId }),
+          }).catch((e) => {
+            console.warn('executePendingRun fetch warning:', e);
           });
           router.push(`/dashboard/runs/${runId}`);
           return;
@@ -719,9 +728,22 @@ export default function WorkflowEditorPage() {
                   </div>
 
                   {triggerType === 'webhook' && (
-                    <div>
-                      <label className="input-label">Trigger ID (share with external system)</label>
-                      <div className="code-block break-all">{triggerId || 'Save first to get ID'}</div>
+                    <div className="flex flex-col gap-3">
+                      <div>
+                        <label className="input-label">Trigger ID (send to external system)</label>
+                        <div className="code-block break-all select-all" style={{ cursor: 'text' }}>
+                          {triggerId || 'Save first to get ID'}
+                        </div>
+                        <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                          POST to: <code>/nhost/functions/webhookIngest</code> with <code>{'{"trigger_id":"<id>","secret":"<secret>","data":{...}}'}</code>
+                        </p>
+                      </div>
+                      <div>
+                        <label className="input-label">Webhook Secret (send with every request)</label>
+                        <div className="code-block break-all select-all" style={{ cursor: 'text' }}>
+                          {data?.workflows_by_pk?.workflow_triggers?.[0]?.webhook_secret || 'Save first to get secret'}
+                        </div>
+                      </div>
                     </div>
                   )}
 

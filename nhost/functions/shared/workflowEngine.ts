@@ -222,7 +222,7 @@ export async function continueWorkflowFromStep(
     workflow_id: workflowId || run.workflow_id,
   });
 
-  const allSteps = (workflowData?.workflows_by_pk?.workflow_steps || [])
+  const allSteps = ((workflowData?.workflows?.[0] || workflowData?.workflows_by_pk)?.workflow_steps || [])
     .filter((s: any) => s.is_enabled)
     .sort((a: any, b: any) => a.step_order - b.step_order);
 

@@ -79,7 +79,10 @@ export default async function handler(req: Request, res: Response) {
       return res.status(404).json({ message: 'Workflow run not found' });
     }
 
-    // Verify caller org membership if callerId is known
+    // Verify caller org membership if callerId is known.
+    // When no callerId is present (e.g. fallback direct-insert path), the admin
+    // secret on the GraphQL client already authorises all DB operations, so we
+    // skip the membership check rather than blocking execution.
     if (callerId) {
       const userRole = await getUserOrgRole(callerId, run.org_id, req);
       if (!userRole || !['owner', 'editor'].includes(userRole)) {
