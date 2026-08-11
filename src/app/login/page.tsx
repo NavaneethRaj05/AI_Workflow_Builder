@@ -1,13 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import { useState } from 'react';
-import { useSignInEmailPassword, useSignUpEmailPassword } from '@nhost/react';
+import { useState, useEffect } from 'react';
+import { useSignInEmailPassword, useSignUpEmailPassword, useAuthenticationStatus } from '@nhost/react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { isAuthenticated, isLoading: authLoading } = useAuthenticationStatus();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -17,6 +18,12 @@ export default function LoginPage() {
   const { signInEmailPassword } = useSignInEmailPassword();
   const { signUpEmailPassword } = useSignUpEmailPassword();
 
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      router.push('/dashboard');
+    }
+  }, [isAuthenticated, authLoading, router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -24,7 +31,15 @@ export default function LoginPage() {
     try {
       if (mode === 'signin') {
         const result = await signInEmailPassword(email, password);
-        if (result.error) throw new Error(result.error.message);
+        if (result.error) {
+          const msg = result.error.message || '';
+          if (msg.includes('already-signed-in') || msg.includes('Already signed in') || msg.includes('signed in')) {
+            toast.success('Already signed in!');
+            router.push('/dashboard');
+            return;
+          }
+          throw new Error(msg || 'Sign in failed');
+        }
         toast.success('Welcome back!');
         router.push('/dashboard');
       } else {
@@ -32,8 +47,16 @@ export default function LoginPage() {
           displayName,
           metadata: { displayName },
         });
-        if (result.error) throw new Error(result.error.message);
-        toast.success('Account created! Check your email to verify.');
+        if (result.error) {
+          const msg = result.error.message || '';
+          if (msg.includes('already-signed-in') || msg.includes('Already signed in') || msg.includes('signed in')) {
+            toast.success('Already signed in!');
+            router.push('/dashboard');
+            return;
+          }
+          throw new Error(msg || 'Sign up failed');
+        }
+        toast.success('Account created!');
         router.push('/dashboard');
       }
     } catch (error: any) {

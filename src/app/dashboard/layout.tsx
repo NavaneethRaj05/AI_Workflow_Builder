@@ -254,8 +254,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
             </div>
             <button
-              onClick={() => {
-                nhost.auth.signOut();
+              onClick={async () => {
+                await nhost.auth.signOut();
                 router.push('/login');
               }}
               className="p-1.5 rounded-lg transition-colors"
