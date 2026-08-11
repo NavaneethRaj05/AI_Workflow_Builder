@@ -48,6 +48,7 @@ export default function AdminPage() {
   const { refetch: lookupUser, loading: lookingUp } = useQuery(GET_USERS_BY_EMAIL, {
     variables: { email: inviteEmail },
     skip: true,
+    errorPolicy: 'ignore',
   });
 
   const [updateRole] = useMutation(UPDATE_ORG_MEMBER_ROLE, {
@@ -86,17 +87,36 @@ export default function AdminPage() {
   const members = membersData?.org_members || [];
   const orgs = orgsData?.org_members || [];
 
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
   const handleLookupUser = async () => {
-    if (!inviteEmail.trim()) return;
-    const result = await lookupUser({ email: inviteEmail.trim() });
-    const found = result.data?.users?.[0];
-    setLookupDone(true);
-    if (found) {
-      setInviteUserId(found.id);
-      toast.success(`Found: ${found.displayName || found.email}`);
-    } else {
+    const input = inviteEmail.trim();
+    if (!input) return;
+
+    // Check if input is already a UUID
+    if (uuidRegex.test(input)) {
+      setInviteUserId(input);
+      setLookupDone(true);
+      toast.success('Using provided User ID');
+      return;
+    }
+
+    try {
+      const result = await lookupUser({ email: input });
+      const found = result.data?.users?.[0];
+      setLookupDone(true);
+      if (found) {
+        setInviteUserId(found.id);
+        toast.success(`Found: ${found.displayName || found.email}`);
+      } else {
+        setInviteUserId(null);
+        toast.error('No user found with that email. You can also paste their User ID directly.');
+      }
+    } catch {
+      setLookupDone(true);
+      // If users query is not exposed, allow direct UUID entry
       setInviteUserId(null);
-      toast.error('No user found with that email. They must sign up first.');
+      toast.error('User lookup by email unavailable. Please enter User ID (UUID) directly.');
     }
   };
 
