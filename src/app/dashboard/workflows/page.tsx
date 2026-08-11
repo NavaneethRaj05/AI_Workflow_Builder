@@ -9,6 +9,7 @@ import {
   TRIGGER_WORKFLOW_RUN,
   CREATE_WORKFLOW_RUN_DIRECT,
   DELETE_WORKFLOW,
+  DELETE_WORKFLOW_RUNS_BY_WORKFLOW,
 } from '@/lib/graphql/operations';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -112,10 +113,22 @@ export default function WorkflowsPage() {
     }).catch(() => { /* run detail page handles recovery */ });
   };
 
+  const [deleteWorkflowRuns] = useMutation(DELETE_WORKFLOW_RUNS_BY_WORKFLOW);
+
   const [deleteWorkflow] = useMutation(DELETE_WORKFLOW, {
+    update(cache, { data }) {
+      const deletedId = data?.delete_workflows_by_pk?.id;
+      if (!deletedId) return;
+      cache.modify({
+        fields: {
+          workflows(existing: any[] = [], { readField }) {
+            return existing.filter(ref => readField('id', ref) !== deletedId);
+          },
+        },
+      });
+    },
     onCompleted: () => {
       toast.success('Workflow deleted');
-      refetch();
       setDeletingId(null);
     },
     onError: (e) => {
@@ -123,6 +136,18 @@ export default function WorkflowsPage() {
       setDeletingId(null);
     },
   });
+
+  const handleDeleteWorkflow = async (workflowId: string, workflowName: string) => {
+    if (!window.confirm(`Delete "${workflowName}"? This cannot be undone.`)) return;
+    setDeletingId(workflowId);
+    try {
+      // Delete runs first so the last run badge disappears cleanly
+      await deleteWorkflowRuns({ variables: { workflow_id: workflowId } });
+    } catch {
+      // Runs may already be gone or cascade — continue with workflow delete
+    }
+    deleteWorkflow({ variables: { id: workflowId } });
+  };
 
   const workflows = (data?.workflows || []).filter((w: any) =>
     w.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -292,12 +317,7 @@ export default function WorkflowsPage() {
                           id={`delete-workflow-${workflow.id}`}
                           style={{ color: '#f87171', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}
                           disabled={isDeleting}
-                          onClick={() => {
-                            if (window.confirm(`Delete "${workflow.name}"? This cannot be undone.`)) {
-                              setDeletingId(workflow.id);
-                              deleteWorkflow({ variables: { id: workflow.id } });
-                            }
-                          }}
+                          onClick={() => handleDeleteWorkflow(workflow.id, workflow.name)}
                         >
                           {isDeleting ? '...' : '🗑 Delete'}
                         </button>

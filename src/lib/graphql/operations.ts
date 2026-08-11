@@ -390,6 +390,14 @@ export const ADD_ORG_MEMBER = gql`
   }
 `;
 
+export const DELETE_WORKFLOW_RUNS_BY_WORKFLOW = gql`
+  mutation DeleteWorkflowRunsByWorkflow($workflow_id: uuid!) {
+    delete_workflow_runs(where: { workflow_id: { _eq: $workflow_id } }) {
+      affected_rows
+    }
+  }
+`;
+
 export const DELETE_WORKFLOW = gql`
   mutation DeleteWorkflow($id: uuid!) {
     delete_workflows_by_pk(id: $id) {

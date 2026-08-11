@@ -82,3 +82,13 @@ update_permissions:
             user_id: { _eq: X-Hasura-User-Id }
       check: {}
 
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        organization:
+          org_members:
+            _and:
+              - user_id: { _eq: X-Hasura-User-Id }
+              - role: { _in: [owner, editor] }
+
