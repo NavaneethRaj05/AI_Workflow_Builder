@@ -3,6 +3,7 @@
 import { evaluateCondition } from './safeCondition';
 import {
   adminClient,
+  getAdminClient,
   getUserOrgRole,
   withRetry,
   CREATE_WORKFLOW_RUN,
@@ -40,6 +41,8 @@ export async function executeWorkflow(
   userId: string | null,
   inputPayload: any = {}
 ) {
+  const adminClient = getAdminClient();
+
   // Fetch workflow with all steps
   const workflowData: any = await adminClient.request(GET_WORKFLOW_WITH_STEPS, {
     workflow_id: workflowId,

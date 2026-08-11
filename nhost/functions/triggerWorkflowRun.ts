@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import type { Request, Response } from 'express';
-import { adminClient, getUserOrgRole } from './shared/graphqlClient';
+import { adminClient, getUserOrgRole, getAdminClient } from './shared/graphqlClient';
 import { executeWorkflow } from './shared/workflowEngine';
 import { gql } from 'graphql-request';
 
@@ -37,8 +37,10 @@ export default async function handler(req: Request, res: Response) {
       return res.status(400).json({ message: 'Bad request: workflow_id is required' });
     }
 
+    const client = getAdminClient(req);
+
     // Fetch workflow to get org_id
-    const workflowData: any = await adminClient.request(gql`
+    const workflowData: any = await client.request(gql`
       query GetWorkflowOrg($id: uuid!) {
         workflows_by_pk(id: $id) {
           id
@@ -74,7 +76,7 @@ export default async function handler(req: Request, res: Response) {
     // =========================================================
     // QUOTA CHECK: Verify org hasn't exhausted its quota
     // =========================================================
-    const orgData: any = await adminClient.request(gql`
+    const orgData: any = await client.request(gql`
       query GetOrgQuota($id: uuid!) {
         organizations_by_pk(id: $id) {
           quota_limit
@@ -91,7 +93,7 @@ export default async function handler(req: Request, res: Response) {
     // Auto-reset quota if past reset date
     let quotaUsed = org.quota_used;
     if (now >= resetAt) {
-      await adminClient.request(gql`
+      await client.request(gql`
         mutation ResetQuota($id: uuid!) {
           update_organizations_by_pk(
             pk_columns: {id: $id}
@@ -114,7 +116,7 @@ export default async function handler(req: Request, res: Response) {
     // =========================================================
     // CREATE WORKFLOW RUN
     // =========================================================
-    const runData: any = await adminClient.request(gql`
+    const runData: any = await client.request(gql`
       mutation CreateRun($object: workflow_runs_insert_input!) {
         insert_workflow_runs_one(object: $object) {
           id

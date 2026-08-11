@@ -18,6 +18,19 @@ const getAdminSecret = () => {
 
 const adminSecret = getAdminSecret();
 
+export function getAdminClient(req?: any) {
+  const secret = getAdminSecret();
+  const headers: Record<string, string> = {
+    'x-hasura-admin-secret': secret,
+  };
+
+  if (req?.headers?.authorization) {
+    headers['Authorization'] = req.headers.authorization;
+  }
+
+  return new GraphQLClient(gqlUrl, { headers });
+}
+
 // Admin GraphQL client (bypasses row-level security)
 export const adminClient = new GraphQLClient(gqlUrl, {
   headers: {
@@ -163,7 +176,8 @@ export const DB_WRITE_RESULT = gql`
 // Helper: Get user role in org
 // ============================================================
 export async function getUserOrgRole(userId: string, orgId: string): Promise<string | null> {
-  const data: any = await adminClient.request(GET_USER_ORG_ROLE, {
+  const client = getAdminClient();
+  const data: any = await client.request(GET_USER_ORG_ROLE, {
     user_id: userId,
     org_id: orgId,
   });

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import type { Request, Response } from 'express';
-import { adminClient, getUserOrgRole } from './shared/graphqlClient';
+import { adminClient, getUserOrgRole, getAdminClient } from './shared/graphqlClient';
 import { continueWorkflowFromStep } from './shared/workflowEngine';
 import { gql } from 'graphql-request';
 
@@ -30,8 +30,10 @@ export default async function handler(req: Request, res: Response) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
+    const client = getAdminClient(req);
+
     // Fetch step_run with full context
-    const stepRunData: any = await adminClient.request(gql`
+    const stepRunData: any = await client.request(gql`
       query GetStepRunForApproval($id: uuid!) {
         step_runs_by_pk(id: $id) {
           id
@@ -112,7 +114,7 @@ export default async function handler(req: Request, res: Response) {
     // FIX: status must be an unquoted enum value in Hasura GQL
     // =========================================================
     const now = new Date().toISOString();
-    await adminClient.request(gql`
+    await client.request(gql`
       mutation ApproveStepRun($id: uuid!, $approver_id: uuid!, $comment: String, $now: timestamptz!, $output: jsonb!) {
         update_step_runs_by_pk(
           pk_columns: {id: $id}
