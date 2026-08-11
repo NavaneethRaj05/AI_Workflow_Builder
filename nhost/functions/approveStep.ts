@@ -164,7 +164,8 @@ export default async function handler(req: Request, res: Response) {
       runId,
       workflowId,
       pausedAtStepId,
-      { approved: true, approved_by: approverId, comment }
+      { approved: true, approved_by: approverId, comment },
+      req
     ).catch(error => {
       console.error(`[approveStep] Resume error for run ${runId}:`, error);
     });

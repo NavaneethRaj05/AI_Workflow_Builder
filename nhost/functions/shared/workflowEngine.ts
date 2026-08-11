@@ -232,10 +232,13 @@ export async function continueWorkflowFromStep(
   runId: string,
   workflowId: string,
   resumeFromStepId: string,
-  approverOutput: any = {}
+  approverOutput: any = {},
+  req?: any
 ) {
+  const client = getAdminClient(req);
+
   // Fetch the run for org context
-  const runData: any = await adminClient.request(gql`
+  const runData: any = await client.request(gql`
     query GetRunForResume($id: uuid!) {
       workflow_runs_by_pk(id: $id) {
         id
@@ -256,8 +259,8 @@ export async function continueWorkflowFromStep(
   const run = runData?.workflow_runs_by_pk;
   if (!run) throw new Error('Run not found');
 
-  // FIX: Fetch the COMPLETE workflow step list (not just already-run step_runs)
-  const workflowData: any = await adminClient.request(GET_WORKFLOW_WITH_STEPS, {
+  // Fetch the COMPLETE workflow step list
+  const workflowData: any = await client.request(GET_WORKFLOW_WITH_STEPS, {
     workflow_id: workflowId || run.workflow_id,
   });
 
@@ -282,8 +285,22 @@ export async function continueWorkflowFromStep(
 
   let previousOutput = lastSucceeded?.output || approverOutput;
 
+  // If approval gate was the last step in the workflow, mark run completed immediately!
+  if (remainingSteps.length === 0) {
+    await client.request(UPDATE_WORKFLOW_RUN, {
+      id: runId,
+      set: { status: 'completed', paused_at_step_id: null, completed_at: new Date().toISOString(), output: previousOutput },
+    });
+    await client.request(gql`
+      mutation IncrementQuota($org_id: uuid!) {
+        update_organizations_by_pk(pk_columns: {id: $org_id}, _inc: {quota_used: 1}) { id }
+      }
+    `, { org_id: run.org_id });
+    return { status: 'completed' };
+  }
+
   // Update run to running
-  await adminClient.request(UPDATE_WORKFLOW_RUN, {
+  await client.request(UPDATE_WORKFLOW_RUN, {
     id: runId,
     set: { status: 'running', paused_at_step_id: null },
   });
@@ -291,7 +308,7 @@ export async function continueWorkflowFromStep(
   let runFailed = false;
 
   for (const step of remainingSteps) {
-    const stepRunData: any = await adminClient.request(CREATE_STEP_RUN, {
+    const stepRunData: any = await client.request(CREATE_STEP_RUN, {
       object: {
         workflow_run_id: runId,
         workflow_step_id: step.id,
@@ -301,7 +318,7 @@ export async function continueWorkflowFromStep(
     });
 
     const stepRunId = stepRunData?.insert_step_runs_one?.id;
-    await adminClient.request(UPDATE_STEP_RUN, {
+    await client.request(UPDATE_STEP_RUN, {
       id: stepRunId,
       set: { status: 'running', started_at: new Date().toISOString(), attempt_count: 1 },
     });
@@ -316,33 +333,33 @@ export async function continueWorkflowFromStep(
           output = await executeHttpRequest(step, previousOutput, stepRunId);
           break;
         case 'db_write':
-          output = await executeDbWrite(step, previousOutput, run.org_id, runId, stepRunId, adminClient);
+          output = await executeDbWrite(step, previousOutput, run.org_id, runId, stepRunId, client);
           break;
         case 'notify':
-          output = await executeNotify(step, previousOutput, run.org_id, runId, stepRunId, adminClient);
+          output = await executeNotify(step, previousOutput, run.org_id, runId, stepRunId, client);
           break;
         case 'conditional_branch':
           output = executeConditionalBranch(step, previousOutput);
           break;
         case 'approval_gate':
-          await adminClient.request(UPDATE_STEP_RUN, { id: stepRunId, set: { status: 'awaiting_approval' } });
-          await adminClient.request(UPDATE_WORKFLOW_RUN, { id: runId, set: { status: 'paused', paused_at_step_id: step.id } });
+          await client.request(UPDATE_STEP_RUN, { id: stepRunId, set: { status: 'awaiting_approval' } });
+          await client.request(UPDATE_WORKFLOW_RUN, { id: runId, set: { status: 'paused', paused_at_step_id: step.id } });
           return { status: 'paused', paused_at_step_id: step.id };
         default:
           throw new Error(`Unknown step type: ${step.step_type}`);
       }
 
-      await adminClient.request(UPDATE_STEP_RUN, {
+      await client.request(UPDATE_STEP_RUN, {
         id: stepRunId,
         set: { status: 'succeeded', output, completed_at: new Date().toISOString() },
       });
       previousOutput = output;
     } catch (error: any) {
-      await adminClient.request(UPDATE_STEP_RUN, {
+      await client.request(UPDATE_STEP_RUN, {
         id: stepRunId,
         set: { status: 'failed', error: error.message, completed_at: new Date().toISOString() },
       });
-      await adminClient.request(UPDATE_WORKFLOW_RUN, {
+      await client.request(UPDATE_WORKFLOW_RUN, {
         id: runId,
         set: { status: 'failed', completed_at: new Date().toISOString() },
       });
@@ -352,11 +369,11 @@ export async function continueWorkflowFromStep(
   }
 
   if (!runFailed) {
-    await adminClient.request(UPDATE_WORKFLOW_RUN, {
+    await client.request(UPDATE_WORKFLOW_RUN, {
       id: runId,
       set: { status: 'completed', completed_at: new Date().toISOString(), output: previousOutput },
     });
-    await adminClient.request(gql`
+    await client.request(gql`
       mutation IncrementQuota($org_id: uuid!) {
         update_organizations_by_pk(pk_columns: {id: $org_id}, _inc: {quota_used: 1}) { id }
       }
