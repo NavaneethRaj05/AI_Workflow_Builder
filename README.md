@@ -192,6 +192,19 @@ curl -X POST https://your-nhost.nhost.run/v1/webhookIngest \
 ```
 
 ---
+## Demo Seed Data (Dashboard)
+
+The application seeds three demo workflows on a user's first login:
+
+| Workflow | Description |
+|----------|-------------|
+| AI Customer Support Pipeline | Classifies support tickets, branches, notifies Slack, logs to DB, includes an approval gate for high‑priority tickets. |
+| Scheduled Daily Digest | Fetches top Hacker News stories, summarizes with Groq LLM, and emails a daily digest. |
+| Content Moderation Workflow | Analyzes user content via LLM, auto‑approves safe items, flags unsafe ones for manual review (approval gate). |
+
+Seeding is performed by the `useFirstTimeSetup` hook (`src/lib/useFirstTimeSetup.ts`). It creates an organization, adds the user as owner, and runs GraphQL mutations (`SEED_WORKFLOW`, `SEED_STEPS`, `SEED_TRIGGER`) to populate the above workflows. The dashboard (`/dashboard`) displays them automatically once seeding completes.
+
+---
 
 ## API Keys
 
